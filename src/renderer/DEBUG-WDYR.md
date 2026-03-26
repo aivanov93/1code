@@ -6,10 +6,9 @@ This document explains how to use the WDYR library to debug infinite re-render l
 
 To enable WDYR debugging:
 
-1. Open `src/renderer/wdyr.ts`
-2. Change `const WDYR_ENABLED = false` to `const WDYR_ENABLED = true`
-3. Run `bun run dev`
-4. Reproduce the issue - console will show re-render logs
+1. Start dev with `VITE_ENABLE_WDYR=true bun run dev`
+2. Reproduce the issue
+3. Check the renderer console for WDYR logs
 
 ## What is WDYR?
 
@@ -28,11 +27,11 @@ To enable WDYR debugging:
 
 ### JSX Import Source
 
-In `electron.vite.config.ts`, we configure WDYR as the JSX import source in dev mode:
+In `electron.vite.config.ts`, we configure WDYR as the JSX import source only when `VITE_ENABLE_WDYR=true`:
 
 ```typescript
 react({
-  jsxImportSource: isDev
+  jsxImportSource: isDev && isWdyrEnabled
     ? "@welldone-software/why-did-you-render"
     : undefined,
 })
@@ -189,7 +188,7 @@ const agentChat = useMemo(() => {
 
 ### WDYR Not Logging Anything
 
-1. Make sure `WDYR_ENABLED = true` in `wdyr.ts`
+1. Make sure you started dev with `VITE_ENABLE_WDYR=true`
 2. Make sure you restarted the dev server after changing config
 3. Check that `jsxImportSource` is set in `electron.vite.config.ts`
 

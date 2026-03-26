@@ -5,12 +5,12 @@ import whyDidYouRender from "@welldone-software/why-did-you-render"
 // ============================================================================
 // WDYR (Why Did You Render) - React Re-render Debugging
 // ============================================================================
-// Set to true to enable re-render tracking and infinite loop detection.
+// Enable with VITE_ENABLE_WDYR=true bun run dev
 // See DEBUG-WDYR.md for usage instructions.
 // ============================================================================
-const WDYR_ENABLED = false
+const WDYR_ENABLED = import.meta.env.DEV && import.meta.env.VITE_ENABLE_WDYR === "true"
 
-if (import.meta.env.DEV && WDYR_ENABLED) {
+if (WDYR_ENABLED) {
   // Track render counts per component to detect infinite loops
   const renderCounts: Record<string, { count: number; lastTime: number }> = {}
   const THRESHOLD = 10 // Max renders before triggering debugger

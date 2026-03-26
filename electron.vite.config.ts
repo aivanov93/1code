@@ -5,6 +5,7 @@ import tailwindcss from "tailwindcss"
 import autoprefixer from "autoprefixer"
 
 const isDev = process.env.NODE_ENV !== "production"
+const isWdyrEnabled = process.env.VITE_ENABLE_WDYR === "true"
 
 export default defineConfig({
   main: {
@@ -52,8 +53,8 @@ export default defineConfig({
   renderer: {
     plugins: [
       react({
-        // In dev mode, use WDYR as JSX import source to track ALL component re-renders
-        jsxImportSource: isDev
+        // Keep WDYR opt-in so normal dev runs don't pay for rerender tracking.
+        jsxImportSource: isDev && isWdyrEnabled
           ? "@welldone-software/why-did-you-render"
           : undefined,
       }),

@@ -16,6 +16,7 @@ import { createIPCHandler } from "trpc-electron/main"
 import { createAppRouter } from "../lib/trpc/routers"
 import { getAuthManager, handleAuthCode, getBaseUrl } from "../index"
 import { registerGitWatcherIPC } from "../lib/git/watcher"
+import { makePerfLogger } from "../lib/perf"
 import { hasActiveClaudeSessions, abortAllClaudeSessions } from "../lib/trpc/routers/claude"
 import { hasActiveCodexStreams, abortAllCodexStreams } from "../lib/trpc/routers/codex"
 import { registerThemeScannerIPC } from "../lib/vscode-theme-scanner"
@@ -631,8 +632,10 @@ function getUseNativeFramePreference(): boolean {
  * @param options.subChatId Open this sub-chat in the new window
  */
 export function createWindow(options?: { chatId?: string; subChatId?: string }): BrowserWindow {
+  const createWindowPerf = makePerfLogger("create-window")
   // Register IPC handlers before creating first window
   registerIpcHandlers()
+  createWindowPerf("registered IPC handlers")
 
   // Read Windows frame preference
   const useNativeFrame = getUseNativeFramePreference()
@@ -664,12 +667,15 @@ export function createWindow(options?: { chatId?: string; subChatId?: string }):
       partition: "persist:main", // Use persistent session for cookies
     },
   })
+  createWindowPerf("constructed BrowserWindow")
 
   // Register window with manager and get stable ID for localStorage namespacing
   const stableWindowId = windowManager.register(window)
   console.log(
     `[Main] Created window ${window.id} with stable ID "${stableWindowId}" (total: ${windowManager.count()})`,
   )
+  const windowPerf = makePerfLogger(`window:${stableWindowId}`)
+  windowPerf("registered window")
 
   // Setup tRPC IPC handler (singleton pattern)
   if (ipcHandler) {
@@ -685,6 +691,7 @@ export function createWindow(options?: { chatId?: string; subChatId?: string }):
       }),
     })
   }
+  windowPerf("attached tRPC IPC handler")
 
   let windowShown = false
   const showWindow = (reason: string) => {
@@ -706,6 +713,7 @@ export function createWindow(options?: { chatId?: string; subChatId?: string }):
   // Show window when ready
   window.on("ready-to-show", () => {
     console.log("[Main] Window", window.id, "ready to show")
+    windowPerf("ready-to-show")
     showWindow("ready-to-show")
   })
 
@@ -846,9 +854,15 @@ export function createWindow(options?: { chatId?: string; subChatId?: string }):
       const url = new URL(devServerUrl)
       buildParams(url.searchParams)
       window.loadURL(url.toString())
-      // Only open devtools for first window in development
-      if (!app.isPackaged && windowId === "main") {
+      windowPerf(`loadURL ${url.toString()}`)
+      // Keep DevTools opt-in so perf investigations start from a cleaner baseline.
+      if (
+        !app.isPackaged &&
+        windowId === "main" &&
+        process.env.ONECODE_OPEN_DEVTOOLS === "true"
+      ) {
         window.webContents.openDevTools()
+        windowPerf("opened DevTools")
       }
     } else {
       // Pass params via hash for production (file:// URLs)
@@ -857,6 +871,7 @@ export function createWindow(options?: { chatId?: string; subChatId?: string }):
       window.loadFile(join(__dirname, "../renderer/index.html"), {
         hash: hashParams.toString(),
       })
+      windowPerf("loadFile renderer/index.html")
     }
   } else {
     console.log("[Main] ✗ Not authenticated, showing login page")
@@ -864,14 +879,17 @@ export function createWindow(options?: { chatId?: string; subChatId?: string }):
     if (devServerUrl) {
       const loginPath = join(app.getAppPath(), "src/renderer/login.html")
       window.loadFile(loginPath)
+      windowPerf("loadFile login.html (dev)")
     } else {
       window.loadFile(join(__dirname, "../renderer/login.html"))
+      windowPerf("loadFile login.html (prod)")
     }
   }
 
   // Log page load - traffic light visibility is managed by the renderer
   window.webContents.on("did-finish-load", () => {
     console.log("[Main] Page finished loading in window", window.id)
+    windowPerf("did-finish-load")
     showWindow("did-finish-load")
   })
   window.webContents.on(

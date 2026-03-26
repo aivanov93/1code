@@ -28,6 +28,7 @@ import {
 } from "./lib/cli"
 import { cleanupGitWatchers } from "./lib/git/watcher"
 import { cancelAllPendingOAuth, handleMcpOAuthCallback } from "./lib/mcp-auth"
+import { makePerfLogger } from "./lib/perf"
 import { getAllMcpConfigHandler, hasActiveClaudeSessions, abortAllClaudeSessions } from "./lib/trpc/routers/claude"
 import { getAllCodexMcpConfigHandler, hasActiveCodexStreams, abortAllCodexStreams } from "./lib/trpc/routers/codex"
 import {
@@ -45,6 +46,8 @@ import { IS_DEV, AUTH_SERVER_PORT } from "./constants"
 // Deep link protocol (must match package.json build.protocols.schemes)
 // Use different protocol in dev to avoid conflicts with production app
 const PROTOCOL = IS_DEV ? "twentyfirst-agents-dev" : "twentyfirst-agents"
+const startupPerf = makePerfLogger("startup")
+const shouldDisableMcpWarmup = process.env.ONECODE_DISABLE_MCP_WARMUP === "true"
 
 // Set dev mode userData path BEFORE requestSingleInstanceLock()
 // This ensures dev and prod have separate instance locks
@@ -53,11 +56,13 @@ if (IS_DEV) {
   const devUserData = join(app.getPath("userData"), "..", "Agents Dev")
   app.setPath("userData", devUserData)
   console.log("[Dev] Using separate userData path:", devUserData)
+  startupPerf("configured dev userData path")
 }
 
 // Increase V8 old-space limit for renderer/main processes to reduce OOM frequency
 // under heavy multi-chat workloads. Must be set before app readiness/window creation.
 app.commandLine.appendSwitch("js-flags", "--max-old-space-size=8192")
+startupPerf("configured V8 memory limit")
 
 // Initialize Sentry before app is ready (production only)
 if (app.isPackaged && !IS_DEV) {
@@ -872,13 +877,16 @@ if (gotTheLock) {
 
     // Build initial menu
     buildMenu()
+    startupPerf("built application menu")
 
     // Initialize auth manager (uses singleton from auth-manager module)
     authManager = initAuthManager(!!process.env.ELECTRON_RENDERER_URL)
     console.log("[App] Auth manager initialized")
+    startupPerf("initialized auth manager")
 
     // Initialize analytics after auth manager so we can identify user
     initAnalytics()
+    startupPerf("initialized analytics")
 
     // Local-only mode skips desktop account identification/cookie sync.
     if (!DESKTOP_LOCAL_ONLY && authManager.isAuthenticated()) {
@@ -920,12 +928,14 @@ if (gotTheLock) {
     try {
       initDatabase()
       console.log("[App] Database initialized")
+      startupPerf("initialized database")
     } catch (error) {
       console.error("[App] Failed to initialize database:", error)
     }
 
     // Create main window
     createMainWindow()
+    startupPerf("created main window")
 
     // Initialize auto-updater (production only)
     if (app.isPackaged) {
@@ -936,30 +946,40 @@ if (gotTheLock) {
       setTimeout(() => {
         checkForUpdates(true)
       }, 5000)
+      startupPerf("initialized auto-updater")
     }
 
     // Warm up MCP cache 3 seconds after startup (background, non-blocking)
     // This populates the cache so all future sessions can use filtered MCP servers
-    setTimeout(async () => {
-      try {
-        const results = await Promise.allSettled([
-          getAllMcpConfigHandler(),
-          getAllCodexMcpConfigHandler(),
-        ])
+    if (shouldDisableMcpWarmup) {
+      console.log("[App] Skipping MCP warmup (ONECODE_DISABLE_MCP_WARMUP=true)")
+    } else {
+      setTimeout(async () => {
+        const mcpWarmupPerf = makePerfLogger("mcp-warmup")
+        mcpWarmupPerf("started")
+        try {
+          const results = await Promise.allSettled([
+            getAllMcpConfigHandler(),
+            getAllCodexMcpConfigHandler(),
+          ])
+          mcpWarmupPerf("completed config fetches")
 
-        if (results[0].status === "rejected") {
-          console.error("[App] Claude MCP warmup failed:", results[0].reason)
+          if (results[0].status === "rejected") {
+            console.error("[App] Claude MCP warmup failed:", results[0].reason)
+          }
+          if (results[1].status === "rejected") {
+            console.error("[App] Codex MCP warmup failed:", results[1].reason)
+          }
+        } catch (error) {
+          console.error("[App] MCP warmup failed:", error)
         }
-        if (results[1].status === "rejected") {
-          console.error("[App] Codex MCP warmup failed:", results[1].reason)
-        }
-      } catch (error) {
-        console.error("[App] MCP warmup failed:", error)
-      }
-    }, 3000)
+      }, 3000)
+    }
+    startupPerf("scheduled post-start background work")
 
     // Handle directory argument from CLI (e.g., `1code /path/to/project`)
     parseLaunchDirectory()
+    startupPerf("parsed launch directory")
 
     // Handle deep link from app launch (Windows/Linux)
     const deepLinkUrl = process.argv.find((arg) =>
@@ -968,6 +988,7 @@ if (gotTheLock) {
     if (deepLinkUrl) {
       handleDeepLink(deepLinkUrl)
     }
+    startupPerf("app ready flow complete")
 
     // macOS: Re-create window when dock icon is clicked
     app.on("activate", () => {

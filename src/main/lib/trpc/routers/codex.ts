@@ -2,7 +2,6 @@ import { createACPProvider, type ACPProvider } from "@mcpc-tech/acp-ai-provider"
 import { observable } from "@trpc/server/observable"
 import { streamText } from "ai"
 import { eq } from "drizzle-orm"
-import { app } from "electron"
 import { spawn, type ChildProcess } from "node:child_process"
 import { createHash } from "node:crypto"
 import { existsSync } from "node:fs"
@@ -14,6 +13,7 @@ import {
   normalizeCodexAssistantMessage,
   normalizeCodexStreamChunk,
 } from "../../../../shared/codex-tool-normalizer"
+import { resolveCliExecutable } from "../../cli-executables"
 import { getClaudeShellEnvironment } from "../../claude/env"
 import { resolveProjectPathFromWorktree } from "../../claude-config"
 import { getDatabase, projects as projectsTable, subChats } from "../../db"
@@ -234,29 +234,15 @@ function resolveCodexAcpBinaryPath(): string {
   return toUnpackedAsarPath(resolvedPath)
 }
 
-function resolveBundledCodexCliPath(): string {
-  const binaryName = process.platform === "win32" ? "codex.exe" : "codex"
-  const resourcesDir = app.isPackaged
-    ? join(process.resourcesPath, "bin")
-    : join(
-        app.getAppPath(),
-        "resources",
-        "bin",
-        `${process.platform}-${process.arch}`,
-      )
-
-  const binaryPath = join(resourcesDir, binaryName)
-  if (existsSync(binaryPath)) {
-    return binaryPath
-  }
-
-  const hint = app.isPackaged
-    ? "Binary is missing from bundled resources."
-    : "Run `bun run codex:download` to download it for local dev."
-
-  throw new Error(
-    `[codex] Bundled Codex CLI not found at ${binaryPath}. ${hint}`,
-  )
+function resolveCodexCliPath(env?: Record<string, string>): string {
+  return resolveCliExecutable({
+    command: "codex",
+    label: "codex",
+    env,
+    overrideEnvKeys: ["CODEX_EXECUTABLE"],
+    missingMessage:
+      "Could not resolve the Codex CLI. Set CODEX_EXECUTABLE or install `codex` on PATH.",
+  })
 }
 
 function stripAnsi(input: string): string {
@@ -360,14 +346,15 @@ async function runCodexCli(
   stderr: string
   exitCode: number | null
 }> {
-  const codexCliPath = resolveBundledCodexCliPath()
+  const env = buildCodexProviderEnv()
+  const codexCliPath = resolveCodexCliPath(env)
   const cwd = options?.cwd?.trim()
 
   return await new Promise((resolvePromise, rejectPromise) => {
     const child = spawn(codexCliPath, args, {
       stdio: ["ignore", "pipe", "pipe"],
       cwd: cwd && cwd.length > 0 ? cwd : undefined,
-      env: process.env,
+      env,
       windowsHide: true,
     })
 
@@ -1341,12 +1328,13 @@ export const codexRouter = router({
       return toLoginSessionResponse(existingSession)
     }
 
-    const codexCliPath = resolveBundledCodexCliPath()
+    const env = buildCodexProviderEnv()
+    const codexCliPath = resolveCodexCliPath(env)
     const sessionId = crypto.randomUUID()
 
     const child = spawn(codexCliPath, ["login"], {
       stdio: ["ignore", "pipe", "pipe"],
-      env: process.env,
+      env,
       windowsHide: true,
     })
 

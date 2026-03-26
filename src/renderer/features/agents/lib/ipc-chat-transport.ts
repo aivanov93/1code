@@ -5,12 +5,9 @@ import {
   claudeLoginModalConfigAtom,
   agentsLoginModalOpenAtom,
   autoOfflineModeAtom,
-  type CustomClaudeConfig,
-  customClaudeConfigAtom,
   enableTasksAtom,
   extendedThinkingEnabledAtom,
   historyEnabledAtom,
-  normalizeCustomClaudeConfig,
   selectedOllamaModelAtom,
   sessionInfoAtom,
   showOfflineModeFeaturesAtom,
@@ -19,15 +16,16 @@ import { appStore } from "../../../lib/jotai-store"
 import { trpcClient } from "../../../lib/trpc"
 import {
   askUserQuestionResultsAtom,
+  claudeModelCatalogAtom,
   compactingSubChatsAtom,
   expiredUserQuestionsAtom,
-  MODEL_ID_MAP,
   pendingAuthRetryMessageAtom,
   pendingUserQuestionsAtom,
   subChatModelIdAtomFamily,
 } from "../atoms"
 import { useAgentSubChatStore } from "../stores/sub-chat-store"
 import type { AgentMessageMetadata } from "../ui/agent-message-usage"
+import { getDefaultClaudeModelSlug } from "./models"
 
 // Error categories and their user-friendly messages
 const ERROR_TOAST_CONFIG: Record<
@@ -170,13 +168,13 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
     const enableTasks = appStore.get(enableTasksAtom)
 
     // Read model selection dynamically per sub-chat (so split panes stay independent)
-    const selectedModelId = appStore.get(subChatModelIdAtomFamily(this.config.subChatId))
-    const modelString = MODEL_ID_MAP[selectedModelId] || MODEL_ID_MAP["opus"]
-
-    const storedCustomConfig = appStore.get(
-      customClaudeConfigAtom,
-    ) as CustomClaudeConfig
-    const customConfig = normalizeCustomClaudeConfig(storedCustomConfig)
+    const selectedModelId = appStore.get(
+      subChatModelIdAtomFamily(this.config.subChatId),
+    )
+    const claudeModels = appStore.get(claudeModelCatalogAtom)
+    const modelString =
+      claudeModels.find((model) => model.slug === selectedModelId)?.slug ||
+      getDefaultClaudeModelSlug(claudeModels)
 
     // Get selected Ollama model for offline mode
     const selectedOllamaModel = appStore.get(selectedOllamaModelAtom)
@@ -195,7 +193,9 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
     const subId = this.config.subChatId.slice(-8)
     let chunkCount = 0
     let lastChunkType = ""
-    console.log(`[SD] R:START sub=${subId} cwd=${this.config.cwd} projectPath=${this.config.projectPath || "(not set)"} customConfig=${customConfig ? "set" : "not set"}`)
+    console.log(
+      `[SD] R:START sub=${subId} cwd=${this.config.cwd} projectPath=${this.config.projectPath || "(not set)"} model=${modelString}`,
+    )
 
     return new ReadableStream({
       start: (controller) => {
@@ -210,7 +210,6 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
             sessionId,
             ...(maxThinkingTokens && { maxThinkingTokens }),
             ...(modelString && { model: modelString }),
-            ...(customConfig && { customConfig }),
             ...(selectedOllamaModel && { selectedOllamaModel }),
             historyEnabled,
             offlineModeEnabled,

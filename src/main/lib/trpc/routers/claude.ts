@@ -10,9 +10,9 @@ import {
   buildClaudeEnv,
   checkOfflineFallback,
   createTransformer,
-  getBundledClaudeBinaryPath,
   logClaudeEnv,
   logRawClaudeMessage,
+  resolveClaudeCodeExecutablePath,
   type UIMessageChunk,
 } from "../../claude"
 import {
@@ -1439,8 +1439,7 @@ export const claudeRouter = router({
               "[claude-auth] ============================================",
             )
 
-            // Get bundled Claude binary path
-            const claudeBinaryPath = getBundledClaudeBinaryPath()
+            const claudeBinaryPath = resolveClaudeCodeExecutablePath(finalEnv)
 
             const resumeSessionId =
               input.sessionId || existingSessionId || undefined
@@ -1973,7 +1972,7 @@ ${prompt}
                     console.error("[claude stderr]", data)
                   }
                 },
-                // Use bundled binary
+                // Use external Claude CLI resolved from env / PATH
                 pathToClaudeCodeExecutable: claudeBinaryPath,
                 // Session handling: For Ollama, use resume with session ID to maintain history
                 // For Claude API, use resume with rollback/fork support

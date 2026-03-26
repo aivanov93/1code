@@ -9,17 +9,31 @@ import {
   codexLoginModalOpenAtom,
   codexOnboardingAuthMethodAtom,
   codexOnboardingCompletedAtom,
-  customClaudeConfigAtom,
-  hiddenModelsAtom,
   normalizeCodexApiKey,
   openaiApiKeyAtom,
-  type CustomClaudeConfig,
 } from "../../../lib/atoms"
-import { ClaudeCodeIcon, CodexIcon, SearchIcon } from "../../ui/icons"
-import { CLAUDE_MODELS, CODEX_MODELS } from "../../../features/agents/lib/models"
+import { ClaudeCodeIcon, CodexIcon } from "../../ui/icons"
+import {
+  claudeModelCatalogAtom,
+  codexModelCatalogAtom,
+  lastSelectedCodexModelIdAtom,
+  lastSelectedCodexThinkingAtom,
+  lastSelectedModelIdAtom,
+} from "../../../features/agents/atoms"
+import {
+  ALL_CODEX_THINKING_LEVELS,
+  SEEDED_CLAUDE_MODELS,
+  SEEDED_CODEX_MODELS,
+  formatCodexThinkingLabel,
+  normalizeCodexThinkingSelection,
+  type ClaudeModelOption,
+  type CodexModelOption,
+  type CodexThinkingLevel,
+} from "../../../features/agents/lib/models"
 import { trpc } from "../../../lib/trpc"
 import { Badge } from "../../ui/badge"
 import { Button } from "../../ui/button"
+import { Checkbox } from "../../ui/checkbox"
 import {
   Collapsible,
   CollapsibleContent,
@@ -33,7 +47,6 @@ import {
 } from "../../ui/dropdown-menu"
 import { Input } from "../../ui/input"
 import { Label } from "../../ui/label"
-import { Switch } from "../../ui/switch"
 
 // Hook to detect narrow screen
 function useIsNarrowScreen(): boolean {
@@ -52,10 +65,90 @@ function useIsNarrowScreen(): boolean {
   return isNarrow
 }
 
-const EMPTY_CONFIG: CustomClaudeConfig = {
-  model: "",
-  token: "",
-  baseUrl: "",
+function moveRow<T>(rows: T[], index: number, direction: -1 | 1): T[] {
+  const nextIndex = index + direction
+  if (nextIndex < 0 || nextIndex >= rows.length) return rows
+  const copy = [...rows]
+  const [item] = copy.splice(index, 1)
+  copy.splice(nextIndex, 0, item)
+  return copy
+}
+
+function normalizeClaudeRows(rows: ClaudeModelOption[]): ClaudeModelOption[] {
+  return rows.map((row) => ({
+    label: row.label.trim(),
+    slug: row.slug.trim(),
+  }))
+}
+
+function normalizeCodexRows(rows: CodexModelOption[]): CodexModelOption[] {
+  return rows.map((row) => {
+    const thinkings = ALL_CODEX_THINKING_LEVELS.filter((thinking) =>
+      row.thinkings.includes(thinking),
+    )
+    const defaultThinking = normalizeCodexThinkingSelection(
+      { ...row, thinkings },
+      row.defaultThinking,
+    )
+
+    return {
+      label: row.label.trim(),
+      slug: row.slug.trim(),
+      thinkings,
+      defaultThinking,
+    }
+  })
+}
+
+function findDuplicate(values: string[]): string | null {
+  const seen = new Set<string>()
+  for (const value of values) {
+    const key = value.trim().toLowerCase()
+    if (seen.has(key)) return value
+    seen.add(key)
+  }
+  return null
+}
+
+function validateClaudeRows(rows: ClaudeModelOption[]): string | null {
+  if (rows.length === 0) return "Add at least one Claude model."
+  if (rows.some((row) => !row.label || !row.slug)) {
+    return "Claude rows need both a label and a slug."
+  }
+
+  const duplicateLabel = findDuplicate(rows.map((row) => row.label))
+  if (duplicateLabel) {
+    return `Claude label must be unique: ${duplicateLabel}`
+  }
+
+  const duplicateSlug = findDuplicate(rows.map((row) => row.slug))
+  if (duplicateSlug) {
+    return `Claude slug must be unique: ${duplicateSlug}`
+  }
+
+  return null
+}
+
+function validateCodexRows(rows: CodexModelOption[]): string | null {
+  if (rows.length === 0) return "Add at least one Codex model."
+  if (rows.some((row) => !row.label || !row.slug)) {
+    return "Codex rows need both a label and a slug."
+  }
+  if (rows.some((row) => row.thinkings.length === 0)) {
+    return "Each Codex row needs at least one thinking level."
+  }
+
+  const duplicateLabel = findDuplicate(rows.map((row) => row.label))
+  if (duplicateLabel) {
+    return `Codex label must be unique: ${duplicateLabel}`
+  }
+
+  const duplicateSlug = findDuplicate(rows.map((row) => row.slug))
+  if (duplicateSlug) {
+    return `Codex slug must be unique: ${duplicateSlug}`
+  }
+
+  return null
 }
 
 // Account row component
@@ -261,10 +354,17 @@ function AnthropicAccountsSection() {
 }
 
 export function AgentsModelsTab() {
-  const [storedConfig, setStoredConfig] = useAtom(customClaudeConfigAtom)
-  const [model, setModel] = useState(storedConfig.model)
-  const [baseUrl, setBaseUrl] = useState(storedConfig.baseUrl)
-  const [token, setToken] = useState(storedConfig.token)
+  const [storedClaudeModels, setStoredClaudeModels] = useAtom(claudeModelCatalogAtom)
+  const [storedCodexModels, setStoredCodexModels] = useAtom(codexModelCatalogAtom)
+  const [lastSelectedClaudeModel, setLastSelectedClaudeModel] = useAtom(
+    lastSelectedModelIdAtom,
+  )
+  const [lastSelectedCodexModelId, setLastSelectedCodexModelId] = useAtom(
+    lastSelectedCodexModelIdAtom,
+  )
+  const [lastSelectedCodexThinking, setLastSelectedCodexThinking] = useAtom(
+    lastSelectedCodexThinkingAtom,
+  )
   const setClaudeLoginModalConfig = useSetAtom(claudeLoginModalConfigAtom)
   const setClaudeLoginModalOpen = useSetAtom(agentsLoginModalOpenAtom)
   const setCodexLoginModalOpen = useSetAtom(codexLoginModalOpenAtom)
@@ -283,15 +383,19 @@ export function AgentsModelsTab() {
   const codexOnboardingAuthMethod = useAtomValue(codexOnboardingAuthMethodAtom)
   const [storedOpenAIKey, setStoredOpenAIKey] = useAtom(openaiApiKeyAtom)
   const [openaiKey, setOpenaiKey] = useState(storedOpenAIKey)
+  const [claudeModelsDraft, setClaudeModelsDraft] = useState(storedClaudeModels)
+  const [codexModelsDraft, setCodexModelsDraft] = useState(storedCodexModels)
   const setOpenAIKeyMutation = trpc.voice.setOpenAIKey.useMutation()
   const codexLogoutMutation = trpc.codex.logout.useMutation()
   const trpcUtils = trpc.useUtils()
 
   useEffect(() => {
-    setModel(storedConfig.model)
-    setBaseUrl(storedConfig.baseUrl)
-    setToken(storedConfig.token)
-  }, [storedConfig.model, storedConfig.baseUrl, storedConfig.token])
+    setClaudeModelsDraft(storedClaudeModels)
+  }, [storedClaudeModels])
+
+  useEffect(() => {
+    setCodexModelsDraft(storedCodexModels)
+  }, [storedCodexModels])
 
   useEffect(() => {
     setOpenaiKey(storedOpenAIKey)
@@ -301,47 +405,109 @@ export function AgentsModelsTab() {
     setCodexApiKey(storedCodexApiKey)
   }, [storedCodexApiKey])
 
-  const savedConfigRef = useRef(storedConfig)
+  const claudeModelsDirty =
+    JSON.stringify(claudeModelsDraft) !== JSON.stringify(storedClaudeModels)
+  const codexModelsDirty =
+    JSON.stringify(codexModelsDraft) !== JSON.stringify(storedCodexModels)
 
-  const handleBlurSave = useCallback(() => {
-    const trimmedModel = model.trim()
-    const trimmedBaseUrl = baseUrl.trim()
-    const trimmedToken = token.trim()
-
-    // Only save if all fields are filled
-    if (trimmedModel && trimmedBaseUrl && trimmedToken) {
-      const next: CustomClaudeConfig = {
-        model: trimmedModel,
-        token: trimmedToken,
-        baseUrl: trimmedBaseUrl,
-      }
-      if (
-        next.model !== savedConfigRef.current.model ||
-        next.token !== savedConfigRef.current.token ||
-        next.baseUrl !== savedConfigRef.current.baseUrl
-      ) {
-        setStoredConfig(next)
-        savedConfigRef.current = next
-      }
-    } else if (!trimmedModel && !trimmedBaseUrl && !trimmedToken) {
-      // All cleared — reset
-      if (savedConfigRef.current.model || savedConfigRef.current.token || savedConfigRef.current.baseUrl) {
-        setStoredConfig(EMPTY_CONFIG)
-        savedConfigRef.current = EMPTY_CONFIG
-      }
+  const handleSaveClaudeModels = useCallback(() => {
+    const normalized = normalizeClaudeRows(claudeModelsDraft)
+    const error = validateClaudeRows(normalized)
+    if (error) {
+      toast.error(error)
+      return
     }
-  }, [model, baseUrl, token, setStoredConfig])
 
-  const handleReset = () => {
-    setStoredConfig(EMPTY_CONFIG)
-    savedConfigRef.current = EMPTY_CONFIG
-    setModel("")
-    setBaseUrl("")
-    setToken("")
-    toast.success("Model settings reset")
-  }
+    setStoredClaudeModels(normalized)
+    if (!normalized.some((row) => row.slug === lastSelectedClaudeModel)) {
+      setLastSelectedClaudeModel(normalized[0]!.slug)
+    }
+    toast.success("Claude models updated")
+  }, [
+    claudeModelsDraft,
+    lastSelectedClaudeModel,
+    setLastSelectedClaudeModel,
+    setStoredClaudeModels,
+  ])
 
-  const canReset = Boolean(model.trim() || baseUrl.trim() || token.trim())
+  const handleSaveCodexModels = useCallback(() => {
+    const normalized = normalizeCodexRows(codexModelsDraft)
+    const error = validateCodexRows(normalized)
+    if (error) {
+      toast.error(error)
+      return
+    }
+
+    setStoredCodexModels(normalized)
+    const selectedModel =
+      normalized.find((row) => row.slug === lastSelectedCodexModelId) ||
+      normalized[0]
+    if (selectedModel && selectedModel.slug !== lastSelectedCodexModelId) {
+      setLastSelectedCodexModelId(selectedModel.slug)
+    }
+    setLastSelectedCodexThinking(
+      normalizeCodexThinkingSelection(selectedModel, lastSelectedCodexThinking),
+    )
+    toast.success("Codex models updated")
+  }, [
+    codexModelsDraft,
+    lastSelectedCodexModelId,
+    lastSelectedCodexThinking,
+    setLastSelectedCodexModelId,
+    setLastSelectedCodexThinking,
+    setStoredCodexModels,
+  ])
+
+  const updateClaudeRow = useCallback(
+    (index: number, patch: Partial<ClaudeModelOption>) => {
+      setClaudeModelsDraft((rows) =>
+        rows.map((row, rowIndex) =>
+          rowIndex === index ? { ...row, ...patch } : row,
+        ),
+      )
+    },
+    [],
+  )
+
+  const updateCodexRow = useCallback(
+    (index: number, patch: Partial<CodexModelOption>) => {
+      setCodexModelsDraft((rows) =>
+        rows.map((row, rowIndex) =>
+          rowIndex === index ? { ...row, ...patch } : row,
+        ),
+      )
+    },
+    [],
+  )
+
+  const toggleCodexThinking = useCallback(
+    (index: number, thinking: CodexThinkingLevel, checked: boolean) => {
+      setCodexModelsDraft((rows) =>
+        rows.map((row, rowIndex) => {
+          if (rowIndex !== index) return row
+          const thinkings = checked
+            ? ALL_CODEX_THINKING_LEVELS.filter((item) =>
+                item === thinking || row.thinkings.includes(item),
+              )
+            : row.thinkings.filter((item) => item !== thinking)
+
+          if (thinkings.length === 0) {
+            return row
+          }
+
+          return {
+            ...row,
+            thinkings,
+            defaultThinking: normalizeCodexThinkingSelection(
+              { ...row, thinkings },
+              row.defaultThinking,
+            ),
+          }
+        }),
+      )
+    },
+    [],
+  )
 
   const handleClaudeCodeSetup = () => {
     setClaudeLoginModalConfig({
@@ -381,16 +547,6 @@ export function AgentsModelsTab() {
     (!codexIntegration && hasLocalCodexSubscription)
   const isCodexSubscriptionActive =
     isCodexSubscriptionConnected && !hasAppCodexApiKey
-  const [hiddenModels, setHiddenModels] = useAtom(hiddenModelsAtom)
-
-  const toggleModelVisibility = useCallback((modelId: string) => {
-    setHiddenModels((prev) => {
-      if (prev.includes(modelId)) {
-        return prev.filter((id) => id !== modelId)
-      }
-      return [...prev, modelId]
-    })
-  }, [setHiddenModels])
 
   const codexConnectionText = isCodexSubscriptionConnected
     ? "Connected via ChatGPT"
@@ -483,25 +639,6 @@ export function AgentsModelsTab() {
     }
   }
 
-  // All models merged into one list for the top section
-  const allModels = useMemo(() => {
-    const items: { id: string; name: string; provider: "claude" | "codex" }[] = []
-    for (const m of CLAUDE_MODELS) {
-      items.push({ id: m.id, name: `${m.name} ${m.version}`, provider: "claude" })
-    }
-    for (const m of CODEX_MODELS) {
-      items.push({ id: m.id, name: m.name, provider: "codex" })
-    }
-    return items
-  }, [])
-
-  const [modelSearch, setModelSearch] = useState("")
-  const filteredModels = useMemo(() => {
-    if (!modelSearch.trim()) return allModels
-    const q = modelSearch.toLowerCase().trim()
-    return allModels.filter((m) => m.name.toLowerCase().includes(q))
-  }, [allModels, modelSearch])
-
   const [isApiKeysOpen, setIsApiKeysOpen] = useState(false)
 
   return (
@@ -514,50 +651,278 @@ export function AgentsModelsTab() {
       )}
 
       {/* ===== Models Section ===== */}
-      <div className="space-y-2">
-        <div className="bg-background rounded-lg border border-border overflow-hidden">
-          {/* Search */}
-          <div className="px-1.5 pt-1.5 pb-0.5">
-            <div className="flex items-center gap-1.5 h-7 px-1.5 rounded-md bg-muted/50">
-              <SearchIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
-              <input
-                value={modelSearch}
-                onChange={(e) => setModelSearch(e.target.value)}
-                placeholder="Add or search model"
-                className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-              />
+      <div className="space-y-4">
+        <div className="bg-background rounded-lg border border-border p-4 space-y-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm font-medium text-foreground">
+                  Claude Models
+                </h4>
+                <ClaudeCodeIcon className="h-3.5 w-3.5 text-muted-foreground" />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Editable label to slug mappings passed directly to Claude Code.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setClaudeModelsDraft(storedClaudeModels)}
+                disabled={!claudeModelsDirty}
+              >
+                Reset
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() =>
+                  setClaudeModelsDraft(SEEDED_CLAUDE_MODELS.map((row) => ({ ...row })))
+                }
+              >
+                Restore Seeded
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => {
+                setClaudeModelsDraft((rows) => [...rows, { label: "", slug: "" }])
+              }}>
+                <Plus className="h-3 w-3 mr-1" />
+                Add Model
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSaveClaudeModels}
+                disabled={!claudeModelsDirty}
+              >
+                Save
+              </Button>
             </div>
           </div>
 
-          {/* Model list */}
-          <div className="divide-y divide-border">
-            {filteredModels.map((m) => {
-              const isEnabled = !hiddenModels.includes(m.id)
-              return (
+          <div className="rounded-lg border border-border overflow-hidden">
+            <div className="grid grid-cols-[44px_1.6fr_1.2fr_44px] gap-2 px-4 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground bg-muted/30">
+              <span>Order</span>
+              <span>Label</span>
+              <span>Slug</span>
+              <span className="text-right">Delete</span>
+            </div>
+            <div className="divide-y divide-border">
+              {claudeModelsDraft.map((row, index) => (
                 <div
-                  key={m.id}
-                  className="flex items-center justify-between px-4 py-3"
+                  key={`claude-${index}`}
+                  className="grid grid-cols-[44px_1.6fr_1.2fr_44px] gap-2 px-4 py-3 items-center"
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">{m.name}</span>
-                    {m.provider === "claude" ? (
-                      <ClaudeCodeIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                    ) : (
-                      <CodexIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                    )}
+                  <div className="flex flex-col gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-5 w-5"
+                      disabled={index === 0}
+                      onClick={() =>
+                        setClaudeModelsDraft((rows) => moveRow(rows, index, -1))
+                      }
+                    >
+                      <ChevronDown className="h-3.5 w-3.5 rotate-180" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-5 w-5"
+                      disabled={index === claudeModelsDraft.length - 1}
+                      onClick={() =>
+                        setClaudeModelsDraft((rows) => moveRow(rows, index, 1))
+                      }
+                    >
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
-                  <Switch
-                    checked={isEnabled}
-                    onCheckedChange={() => toggleModelVisibility(m.id)}
+                  <Input
+                    value={row.label}
+                    placeholder="Opus 4.6"
+                    onChange={(e) => updateClaudeRow(index, { label: e.target.value })}
                   />
+                  <Input
+                    value={row.slug}
+                    placeholder="opus"
+                    onChange={(e) => updateClaudeRow(index, { slug: e.target.value })}
+                  />
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 justify-self-end"
+                    onClick={() =>
+                      setClaudeModelsDraft((rows) =>
+                        rows.filter((_, rowIndex) => rowIndex !== index),
+                      )
+                    }
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
-              )
-            })}
-            {filteredModels.length === 0 && (
-              <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-                No models found
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-background rounded-lg border border-border p-4 space-y-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm font-medium text-foreground">
+                  Codex Models
+                </h4>
+                <CodexIcon className="h-3.5 w-3.5 text-muted-foreground" />
               </div>
-            )}
+              <p className="text-xs text-muted-foreground mt-1">
+                Editable label to slug mappings plus allowed/default thinking levels.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setCodexModelsDraft(storedCodexModels)}
+                disabled={!codexModelsDirty}
+              >
+                Reset
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() =>
+                  setCodexModelsDraft(
+                    SEEDED_CODEX_MODELS.map((row) => ({
+                      ...row,
+                      thinkings: [...row.thinkings],
+                    })),
+                  )
+                }
+              >
+                Restore Seeded
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setCodexModelsDraft((rows) => [
+                    ...rows,
+                    {
+                      label: "",
+                      slug: "",
+                      thinkings: ["high"],
+                      defaultThinking: "high",
+                    },
+                  ])
+                }}
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                Add Model
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSaveCodexModels}
+                disabled={!codexModelsDirty}
+              >
+                Save
+              </Button>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-border overflow-hidden">
+            <div className="grid grid-cols-[44px_1.3fr_1.2fr_2fr_120px_44px] gap-2 px-4 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground bg-muted/30">
+              <span>Order</span>
+              <span>Label</span>
+              <span>Slug</span>
+              <span>Thinking</span>
+              <span>Default</span>
+              <span className="text-right">Delete</span>
+            </div>
+            <div className="divide-y divide-border">
+              {codexModelsDraft.map((row, index) => (
+                <div
+                  key={`codex-${index}`}
+                  className="grid grid-cols-[44px_1.3fr_1.2fr_2fr_120px_44px] gap-2 px-4 py-3 items-center"
+                >
+                  <div className="flex flex-col gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-5 w-5"
+                      disabled={index === 0}
+                      onClick={() =>
+                        setCodexModelsDraft((rows) => moveRow(rows, index, -1))
+                      }
+                    >
+                      <ChevronDown className="h-3.5 w-3.5 rotate-180" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-5 w-5"
+                      disabled={index === codexModelsDraft.length - 1}
+                      onClick={() =>
+                        setCodexModelsDraft((rows) => moveRow(rows, index, 1))
+                      }
+                    >
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                  <Input
+                    value={row.label}
+                    placeholder="Codex 5.4"
+                    onChange={(e) => updateCodexRow(index, { label: e.target.value })}
+                  />
+                  <Input
+                    value={row.slug}
+                    placeholder="gpt-5.4-codex"
+                    onChange={(e) => updateCodexRow(index, { slug: e.target.value })}
+                  />
+                  <div className="flex flex-wrap gap-3">
+                    {ALL_CODEX_THINKING_LEVELS.map((thinking) => (
+                      <label
+                        key={`${row.slug || index}-${thinking}`}
+                        className="flex items-center gap-1.5 text-xs"
+                      >
+                        <Checkbox
+                          checked={row.thinkings.includes(thinking)}
+                          onCheckedChange={(checked) =>
+                            toggleCodexThinking(index, thinking, checked === true)
+                          }
+                        />
+                        <span>{formatCodexThinkingLabel(thinking)}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <select
+                    value={row.defaultThinking}
+                    onChange={(e) =>
+                      updateCodexRow(index, {
+                        defaultThinking: e.target.value as CodexThinkingLevel,
+                      })
+                    }
+                    className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  >
+                    {row.thinkings.map((thinking) => (
+                      <option key={thinking} value={thinking}>
+                        {formatCodexThinkingLabel(thinking)}
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 justify-self-end"
+                    onClick={() =>
+                      setCodexModelsDraft((rows) =>
+                        rows.filter((_, rowIndex) => rowIndex !== index),
+                      )
+                    }
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -734,75 +1099,6 @@ export function AgentsModelsTab() {
             </div>
           </div>
 
-          {/* Override Model */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-medium text-foreground">
-                Override Model
-              </h4>
-              {canReset && (
-                <Button variant="ghost" size="sm" onClick={handleReset} className="text-muted-foreground hover:text-red-600 hover:bg-red-500/10">
-                  Reset
-                </Button>
-              )}
-            </div>
-            <div className="bg-background rounded-lg border border-border overflow-hidden">
-              <div className="flex items-center justify-between p-4">
-                <div className="flex-1">
-                  <Label className="text-sm font-medium">Model name</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Model identifier to use for requests
-                  </p>
-                </div>
-                <div className="flex-shrink-0 w-80">
-                  <Input
-                    value={model}
-                    onChange={(e) => setModel(e.target.value)}
-                    onBlur={handleBlurSave}
-                    className="w-full"
-                    placeholder="claude-3-7-sonnet-20250219"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between p-4 border-t border-border">
-                <div className="flex-1">
-                  <Label className="text-sm font-medium">API token</Label>
-                  <p className="text-xs text-muted-foreground">
-                    ANTHROPIC_AUTH_TOKEN env
-                  </p>
-                </div>
-                <div className="flex-shrink-0 w-80">
-                  <Input
-                    type="password"
-                    value={token}
-                    onChange={(e) => setToken(e.target.value)}
-                    onBlur={handleBlurSave}
-                    className="w-full"
-                    placeholder="sk-ant-..."
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between p-4 border-t border-border">
-                <div className="flex-1">
-                  <Label className="text-sm font-medium">Base URL</Label>
-                  <p className="text-xs text-muted-foreground">
-                    ANTHROPIC_BASE_URL env
-                  </p>
-                </div>
-                <div className="flex-shrink-0 w-80">
-                  <Input
-                    value={baseUrl}
-                    onChange={(e) => setBaseUrl(e.target.value)}
-                    onBlur={handleBlurSave}
-                    className="w-full"
-                    placeholder="https://api.anthropic.com"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
         </CollapsibleContent>
       </Collapsible>
     </div>

@@ -4,6 +4,7 @@ import { z } from "zod"
 import { getAuthManager } from "../../../index"
 import { getClaudeShellEnvironment } from "../../claude"
 import { getExistingClaudeToken } from "../../claude-token"
+import { resolveCliExecutable } from "../../cli-executables"
 import { getApiUrl } from "../../config"
 import {
   anthropicAccounts,
@@ -108,17 +109,37 @@ function storeOAuthToken(oauthToken: string, setAsActive = true): string {
  */
 export const claudeCodeRouter = router({
   /**
-   * Check if user has existing CLI config (API key or proxy)
-   * If true, user can skip OAuth onboarding
+   * Check if user has existing Claude config or executable
+   * If true, user can skip provider onboarding
    * Based on PR #29 by @sa4hnd
    */
   hasExistingCliConfig: publicProcedure.query(() => {
     const shellEnv = getClaudeShellEnvironment()
-    const hasConfig = !!(shellEnv.ANTHROPIC_API_KEY || shellEnv.ANTHROPIC_AUTH_TOKEN || shellEnv.ANTHROPIC_BASE_URL)
+    let claudeExecutablePath: string | null = null
+    try {
+      claudeExecutablePath = resolveCliExecutable({
+        command: "claude",
+        label: "claude",
+        env: shellEnv,
+        overrideEnvKeys: ["CLAUDE_CODE_EXECUTABLE"],
+        missingMessage: "Claude CLI not found",
+      })
+    } catch {
+      claudeExecutablePath = null
+    }
+
+    const hasConfig = !!(
+      shellEnv.ANTHROPIC_API_KEY ||
+      shellEnv.ANTHROPIC_AUTH_TOKEN ||
+      shellEnv.ANTHROPIC_BASE_URL ||
+      claudeExecutablePath
+    )
+
     return {
       hasConfig,
       hasApiKey: !!(shellEnv.ANTHROPIC_API_KEY || shellEnv.ANTHROPIC_AUTH_TOKEN),
       baseUrl: shellEnv.ANTHROPIC_BASE_URL || null,
+      claudeExecutablePath,
     }
   }),
 

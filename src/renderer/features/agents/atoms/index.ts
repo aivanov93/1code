@@ -2,6 +2,12 @@ import { atom } from "jotai"
 import { atomFamily, atomWithStorage } from "jotai/utils"
 import { atomWithWindowStorage } from "../../../lib/window-storage"
 import type { FileMentionOption } from "../mentions/agents-mentions-editor"
+import {
+  SEEDED_CLAUDE_MODELS,
+  SEEDED_CODEX_MODELS,
+  type ClaudeModelOption,
+  type CodexModelOption,
+} from "../lib/models"
 
 // Agent mode type - extensible for future modes like "debug"
 export type AgentMode = "agent" | "plan"
@@ -211,16 +217,30 @@ export const lastSelectedAgentIdAtom = atomWithStorage<string>(
   { getOnInit: true },
 )
 
+export const claudeModelCatalogAtom = atomWithStorage<ClaudeModelOption[]>(
+  "agents:claude-model-catalog",
+  SEEDED_CLAUDE_MODELS,
+  undefined,
+  { getOnInit: true },
+)
+
+export const codexModelCatalogAtom = atomWithStorage<CodexModelOption[]>(
+  "agents:codex-model-catalog",
+  SEEDED_CODEX_MODELS,
+  undefined,
+  { getOnInit: true },
+)
+
 export const lastSelectedModelIdAtom = atomWithStorage<string>(
   "agents:lastSelectedModelId",
-  "opus",
+  SEEDED_CLAUDE_MODELS[0]?.slug || "opus",
   undefined,
   { getOnInit: true },
 )
 
 export const lastSelectedCodexModelIdAtom = atomWithStorage<string>(
   "agents:lastSelectedCodexModelId",
-  "gpt-5.3-codex",
+  SEEDED_CODEX_MODELS[0]?.slug || "gpt-5.3-codex",
   undefined,
   { getOnInit: true },
 )
@@ -229,7 +249,7 @@ export type CodexThinkingPreference = "low" | "medium" | "high" | "xhigh"
 
 export const lastSelectedCodexThinkingAtom = atomWithStorage<CodexThinkingPreference>(
   "agents:lastSelectedCodexThinking",
-  "high",
+  SEEDED_CODEX_MODELS[0]?.defaultThinking || "high",
   undefined,
   { getOnInit: true },
 )
@@ -341,13 +361,6 @@ export const subChatModeAtomFamily = atomFamily((subChatId: string) =>
     },
   ),
 )
-
-// Model ID to full Claude model string mapping
-export const MODEL_ID_MAP: Record<string, string> = {
-  opus: "opus",
-  sonnet: "sonnet",
-  haiku: "haiku",
-}
 
 // Sidebar state - window-scoped so each window has independent sidebar visibility
 export const agentsSidebarOpenAtom = atomWithWindowStorage<boolean>(

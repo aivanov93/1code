@@ -19,7 +19,6 @@ export {
   loadingSubChatsAtom,
   setLoading,
   clearLoading,
-  MODEL_ID_MAP,
   lastChatModesAtom,
 
   // Sidebar atoms

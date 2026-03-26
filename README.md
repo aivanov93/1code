@@ -142,15 +142,14 @@ Learn more at [1code.dev/agents/api](https://1code.dev/agents/api)
 ### Option 1: Build from source (free)
 
 ```bash
-# Prerequisites: Bun, Python 3.11, setuptools, Xcode Command Line Tools (macOS)
+# Prerequisites: Bun, Python 3.11, setuptools, Xcode Command Line Tools (macOS),
+# Claude CLI on PATH, Codex CLI on PATH
 bun install
-bun run claude:download  # Download Claude binary (required!)
-bun run codex:download   # Download Codex binary (required!)
 bun run build
 bun run package:mac  # or package:win, package:linux
 ```
 
-> **Important:** The `claude:download` and `codex:download` steps download required agent binaries. If you skip them, the app may build but agent functionality will not work correctly.
+> **Important:** 1Code uses external `claude` and `codex` executables from your environment. Ensure both commands resolve on PATH before running the app. Optional overrides: `CLAUDE_CODE_EXECUTABLE` and `CODEX_EXECUTABLE`.
 >
 > **Python note:** Python 3.11 is recommended for native module rebuilds. On Python 3.12+, make sure `setuptools` is installed (`pip install setuptools`).
 
@@ -164,8 +163,6 @@ Your subscription helps us maintain and improve 1Code.
 
 ```bash
 bun install
-bun run claude:download  # First time only
-bun run codex:download   # First time only
 bun run dev
 ```
 

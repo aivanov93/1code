@@ -1,9 +1,9 @@
 import { app } from "electron"
 import { execSync } from "node:child_process"
-import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { stripVTControlCharacters } from "node:util"
+import { resolveCliExecutable } from "../cli-executables"
 import {
   getDefaultShell,
   isWindows,
@@ -33,75 +33,32 @@ const STRIPPED_ENV_KEYS = !app.isPackaged
   ? [...STRIPPED_ENV_KEYS_BASE, "ANTHROPIC_API_KEY"]
   : STRIPPED_ENV_KEYS_BASE
 
-// Cache the bundled binary path (only compute once)
-let cachedBinaryPath: string | null = null
-let binaryPathComputed = false
+export function resolveClaudeCodeExecutablePath(
+  env?: Record<string, string>,
+): string {
+  const resolutionEnv = env || getClaudeShellEnvironment()
+  const configuredPath = resolutionEnv.CLAUDE_CODE_EXECUTABLE?.trim()
 
-/**
- * Get path to the bundled Claude binary.
- * Returns the path to the native Claude executable bundled with the app.
- * CACHED - only computes path once and logs verbose info on first call.
- */
-export function getBundledClaudeBinaryPath(): string {
-  // Return cached path if already computed
-  if (binaryPathComputed) {
-    return cachedBinaryPath!
-  }
+  console.log("[claude-cli] ========== CLI RESOLUTION ==========")
+  console.log("[claude-cli] app.isPackaged:", app.isPackaged)
+  console.log("[claude-cli] platform:", process.platform)
+  console.log("[claude-cli] arch:", process.arch)
+  console.log(
+    "[claude-cli] CLAUDE_CODE_EXECUTABLE:",
+    configuredPath || "(not set)",
+  )
 
-  const isDev = !app.isPackaged
-  const currentPlatform = process.platform
-  const arch = process.arch
+  const executablePath = resolveCliExecutable({
+    command: "claude",
+    label: "claude",
+    env: resolutionEnv,
+    overrideEnvKeys: ["CLAUDE_CODE_EXECUTABLE"],
+    missingMessage:
+      "Could not resolve the Claude CLI. Set CLAUDE_CODE_EXECUTABLE or install `claude` on PATH.",
+  })
 
-  // Always log on first call to help debug
-  console.log("[claude-binary] ========== BUNDLED BINARY DEBUG ==========")
-  console.log("[claude-binary] isDev:", isDev)
-  console.log("[claude-binary] platform:", currentPlatform)
-  console.log("[claude-binary] arch:", arch)
-  console.log("[claude-binary] appPath:", app.getAppPath())
-
-  // In dev: apps/desktop/resources/bin/{platform}-{arch}/claude
-  // In production: {resourcesPath}/bin/claude
-  const resourcesPath = isDev
-    ? path.join(
-        app.getAppPath(),
-        "resources/bin",
-        `${currentPlatform}-${arch}`
-      )
-    : path.join(process.resourcesPath, "bin")
-
-  console.log("[claude-binary] resourcesPath:", resourcesPath)
-
-  const binaryName = currentPlatform === "win32" ? "claude.exe" : "claude"
-  const binaryPath = path.join(resourcesPath, binaryName)
-
-  console.log("[claude-binary] binaryPath:", binaryPath)
-
-  // Check if binary exists
-  const exists = fs.existsSync(binaryPath)
-
-  if (!exists) {
-    console.error(
-      "[claude-binary] WARNING: Binary not found at path:",
-      binaryPath
-    )
-    console.error(
-      "[claude-binary] Run 'bun run claude:download' to download it"
-    )
-  } else {
-    const stats = fs.statSync(binaryPath)
-    const sizeMB = (stats.size / 1024 / 1024).toFixed(1)
-    const isExecutable = (stats.mode & fs.constants.X_OK) !== 0
-    console.log("[claude-binary] exists:", exists)
-    console.log("[claude-binary] size:", sizeMB, "MB")
-    console.log("[claude-binary] isExecutable:", isExecutable)
-  }
-  console.log("[claude-binary] ============================================")
-
-  // Cache the result
-  cachedBinaryPath = binaryPath
-  binaryPathComputed = true
-
-  return binaryPath
+  console.log("[claude-cli] ====================================")
+  return executablePath
 }
 
 /**

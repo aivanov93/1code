@@ -13,10 +13,15 @@ import { appStore } from "../../../lib/jotai-store"
 import { trpcClient } from "../../../lib/trpc"
 import {
   pendingAuthRetryMessageAtom,
+  codexModelCatalogAtom,
   subChatCodexModelIdAtomFamily,
   subChatCodexThinkingAtomFamily,
 } from "../atoms"
-import { CODEX_MODELS, type CodexThinkingLevel } from "./models"
+import {
+  getDefaultCodexModel,
+  normalizeCodexThinkingSelection,
+  type CodexThinkingLevel,
+} from "./models"
 import { useAgentSubChatStore } from "../stores/sub-chat-store"
 import type { AgentMessageMetadata } from "../ui/agent-message-usage"
 
@@ -80,30 +85,27 @@ async function resolveCodexCredentialsForAuthError(): Promise<{
 }
 
 function getSelectedCodexModel(subChatId: string): string {
+  const codexModels = appStore.get(codexModelCatalogAtom)
   const selectedModelId = appStore.get(subChatCodexModelIdAtomFamily(subChatId))
   const selectedThinking = appStore.get(subChatCodexThinkingAtomFamily(subChatId))
   const selectedModel =
-    CODEX_MODELS.find((model) => model.id === selectedModelId) ||
-    CODEX_MODELS.find((model) => model.id === "gpt-5.3-codex") ||
-    CODEX_MODELS[0]
+    codexModels.find((model) => model.slug === selectedModelId) ||
+    getDefaultCodexModel(codexModels)
 
   if (!selectedModel) {
     return DEFAULT_CODEX_MODEL
   }
 
-  const normalizedThinking = selectedModel.thinkings.includes(
-    selectedThinking as CodexThinkingLevel,
+  const normalizedThinking = normalizeCodexThinkingSelection(
+    selectedModel,
+    selectedThinking,
   )
-    ? (selectedThinking as CodexThinkingLevel)
-    : selectedModel.thinkings.includes("high")
-      ? "high"
-      : selectedModel.thinkings[0]
 
   if (!normalizedThinking) {
     return DEFAULT_CODEX_MODEL
   }
 
-  return `${selectedModel.id}/${normalizedThinking}`
+  return `${selectedModel.slug}/${normalizedThinking}`
 }
 
 export class ACPChatTransport implements ChatTransport<UIMessage> {

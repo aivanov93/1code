@@ -40,21 +40,15 @@ import {
 import {
   agentsSettingsDialogActiveTabAtom,
   agentsSettingsDialogOpenAtom,
-  anthropicOnboardingCompletedAtom,
-  apiKeyOnboardingCompletedAtom,
-  codexApiKeyAtom,
-  codexOnboardingCompletedAtom,
-  customClaudeConfigAtom,
   extendedThinkingEnabledAtom,
-  hiddenModelsAtom,
-  normalizeCodexApiKey,
-  normalizeCustomClaudeConfig,
   selectedOllamaModelAtom,
   showOfflineModeFeaturesAtom,
 } from "../../../lib/atoms"
 import { trpc } from "../../../lib/trpc"
 import { cn } from "../../../lib/utils"
 import {
+  claudeModelCatalogAtom,
+  codexModelCatalogAtom,
   lastSelectedCodexModelIdAtom,
   lastSelectedCodexThinkingAtom,
   lastSelectedModelIdAtom,
@@ -76,8 +70,8 @@ import {
   saveSubChatDraftWithAttachments,
 } from "../lib/drafts"
 import {
-  CLAUDE_MODELS,
-  CODEX_MODELS,
+  getDefaultCodexModel,
+  normalizeCodexThinkingSelection,
   type CodexThinkingLevel,
 } from "../lib/models"
 import type { DiffTextContext, SelectedTextContext } from "../lib/queue-utils"
@@ -108,13 +102,14 @@ import { toast } from "sonner"
 
 // Hook to get available models (including offline models if Ollama is available and debug enabled)
 function useAvailableModels() {
+  const claudeModels = useAtomValue(claudeModelCatalogAtom)
   const showOfflineFeatures = useAtomValue(showOfflineModeFeaturesAtom)
   const { data: ollamaStatus } = trpc.ollama.getStatus.useQuery(undefined, {
     refetchInterval: showOfflineFeatures ? 30000 : false,
     enabled: showOfflineFeatures, // Only query Ollama when offline mode is enabled
   })
 
-  const baseModels = CLAUDE_MODELS
+  const baseModels = claudeModels
 
   const isOffline = ollamaStatus ? !ollamaStatus.internet.online : false
   const hasOllama = ollamaStatus?.ollama.available && (ollamaStatus.ollama.models?.length ?? 0) > 0
@@ -477,69 +472,74 @@ export const ChatInputArea = memo(function ChatInputArea({
   const setLastSelectedCodexThinking = useSetAtom(lastSelectedCodexThinkingAtom)
   const [selectedOllamaModel, setSelectedOllamaModel] = useAtom(selectedOllamaModelAtom)
   const availableModels = useAvailableModels()
+  const codexModels = useAtomValue(codexModelCatalogAtom)
   const [selectedModel, setSelectedModel] = useState(
     () =>
-      availableModels.models.find((m) => m.id === selectedSubChatModelId) ||
+      availableModels.models.find((m) => m.slug === selectedSubChatModelId) ||
       availableModels.models[0],
   )
 
+  useEffect(() => {
+    const fallbackModel = availableModels.models[0]
+    if (!fallbackModel) return
+    if (availableModels.models.some((model) => model.slug === selectedSubChatModelId)) {
+      return
+    }
+    setSelectedSubChatModelId(fallbackModel.slug)
+    setLastSelectedModelId(fallbackModel.slug)
+  }, [
+    availableModels.models,
+    selectedSubChatModelId,
+    setLastSelectedModelId,
+    setSelectedSubChatModelId,
+  ])
+
   // Sync selectedModel when per-subChat atom value changes (e.g., after localStorage hydration)
   useEffect(() => {
-    const model = availableModels.models.find((m) => m.id === selectedSubChatModelId)
-    if (model && model.id !== selectedModel.id) {
+    const model =
+      availableModels.models.find((m) => m.slug === selectedSubChatModelId) ||
+      availableModels.models[0]
+    if (model && model.slug !== selectedModel?.slug) {
       setSelectedModel(model)
     }
-  }, [availableModels.models, selectedModel.id, selectedSubChatModelId])
+  }, [availableModels.models, selectedModel?.slug, selectedSubChatModelId])
 
   // Materialize the resolved Claude model into per-subChat storage once mounted.
   // This prevents later global default changes from affecting existing sub-chats.
   useEffect(() => {
     if (provider !== "claude-code") return
-    if (!selectedModel?.id) return
-    setSelectedSubChatModelId(selectedModel.id)
-  }, [provider, selectedModel?.id, setSelectedSubChatModelId])
-
-  const storedCodexApiKey = useAtomValue(codexApiKeyAtom)
-  const hasAppCodexApiKey = Boolean(normalizeCodexApiKey(storedCodexApiKey))
-  const hiddenModels = useAtomValue(hiddenModelsAtom)
+    if (!selectedModel?.slug) return
+    setSelectedSubChatModelId(selectedModel.slug)
+  }, [provider, selectedModel?.slug, setSelectedSubChatModelId])
 
   // Connection status for providers
-  const anthropicOnboardingCompleted = useAtomValue(anthropicOnboardingCompletedAtom)
-  const apiKeyOnboardingCompleted = useAtomValue(apiKeyOnboardingCompletedAtom)
-  const codexOnboardingCompleted = useAtomValue(codexOnboardingCompletedAtom)
-  const { data: claudeCodeIntegration } =
-    trpc.claudeCode.getIntegration.useQuery()
-  const codexUiModels = useMemo(
-    () => {
-      let models = hasAppCodexApiKey
-        ? CODEX_MODELS.filter((model) => model.id !== "gpt-5.3-codex")
-        : CODEX_MODELS
-      return models.filter((model) => !hiddenModels.includes(model.id))
-    },
-    [hasAppCodexApiKey, hiddenModels],
-  )
+  useEffect(() => {
+    const fallbackModel = getDefaultCodexModel(codexModels)
+    if (!fallbackModel) return
+    if (codexModels.some((model) => model.slug === selectedSubChatCodexModelId)) {
+      return
+    }
+    setSelectedSubChatCodexModelId(fallbackModel.slug)
+    setLastSelectedCodexModelId(fallbackModel.slug)
+  }, [
+    codexModels,
+    selectedSubChatCodexModelId,
+    setLastSelectedCodexModelId,
+    setSelectedSubChatCodexModelId,
+  ])
+
   const selectedCodexModel = useMemo(
     () =>
-      codexUiModels.find((model) => model.id === selectedSubChatCodexModelId) ||
-      codexUiModels[0] ||
-      CODEX_MODELS[0]!,
-    [codexUiModels, selectedSubChatCodexModelId],
+      codexModels.find((model) => model.slug === selectedSubChatCodexModelId) ||
+      getDefaultCodexModel(codexModels),
+    [codexModels, selectedSubChatCodexModelId],
   )
 
   const selectedCodexThinking = useMemo<CodexThinkingLevel>(() => {
-    if (
-      selectedCodexModel.thinkings.includes(
-        selectedSubChatCodexThinking as CodexThinkingLevel,
-      )
-    ) {
-      return selectedSubChatCodexThinking as CodexThinkingLevel
-    }
-
-    if (selectedCodexModel.thinkings.includes("high")) {
-      return "high"
-    }
-
-    return selectedCodexModel.thinkings[0]!
+    return normalizeCodexThinkingSelection(
+      selectedCodexModel,
+      selectedSubChatCodexThinking,
+    )
   }, [selectedCodexModel, selectedSubChatCodexThinking])
 
   useEffect(() => {
@@ -563,28 +563,17 @@ export const ChatInputArea = memo(function ChatInputArea({
   // This prevents later global default changes from affecting existing sub-chats.
   useEffect(() => {
     if (provider !== "codex") return
-    if (selectedCodexModel?.id) {
-      setSelectedSubChatCodexModelId(selectedCodexModel.id)
+    if (selectedCodexModel?.slug) {
+      setSelectedSubChatCodexModelId(selectedCodexModel.slug)
     }
     setSelectedSubChatCodexThinking(selectedCodexThinking)
   }, [
     provider,
-    selectedCodexModel?.id,
+    selectedCodexModel?.slug,
     selectedCodexThinking,
     setSelectedSubChatCodexModelId,
     setSelectedSubChatCodexThinking,
   ])
-
-  const customClaudeConfig = useAtomValue(customClaudeConfigAtom)
-  const normalizedCustomClaudeConfig =
-    normalizeCustomClaudeConfig(customClaudeConfig)
-  const hasCustomClaudeConfig = Boolean(normalizedCustomClaudeConfig)
-  const isClaudeConnected =
-    Boolean(claudeCodeIntegration?.isConnected) ||
-    anthropicOnboardingCompleted ||
-    apiKeyOnboardingCompleted ||
-    hasCustomClaudeConfig
-
   // Determine current Ollama model (selected or recommended)
   const currentOllamaModel = selectedOllamaModel || availableModels.recommendedModel || availableModels.ollamaModels[0]
 
@@ -600,29 +589,24 @@ export const ChatInputArea = memo(function ChatInputArea({
 
   const selectedModelLabel = useMemo(() => {
     if (provider === "codex") {
-      return selectedCodexModel.name
+      return selectedCodexModel.label
     }
 
     if (availableModels.isOffline && availableModels.hasOllama) {
       return currentOllamaModel || "Ollama"
     }
 
-    if (hasCustomClaudeConfig) {
-      return "Custom Model"
-    }
-
     if (!selectedModel) {
       return "Select model"
     }
 
-    return `${selectedModel.name} ${selectedModel.version}`
+    return selectedModel.label
   }, [
     provider,
-    selectedCodexModel.name,
+    selectedCodexModel.label,
     availableModels.isOffline,
     availableModels.hasOllama,
     currentOllamaModel,
-    hasCustomClaudeConfig,
     selectedModel,
   ])
   const canSwitchProvider =
@@ -746,17 +730,13 @@ export const ChatInputArea = memo(function ChatInputArea({
       if (e.metaKey && e.key === "/") {
         e.preventDefault()
         e.stopPropagation()
-        const shouldBlockForCustomClaude =
-          provider === "claude-code" && hasCustomClaudeConfig
-        if (!shouldBlockForCustomClaude) {
-          setIsModelDropdownOpen(true)
-        }
+        setIsModelDropdownOpen(true)
       }
     }
 
     window.addEventListener("keydown", handleKeyDown, true)
     return () => window.removeEventListener("keydown", handleKeyDown, true)
-  }, [hasCustomClaudeConfig, provider, isActive])
+  }, [provider, isActive])
 
   // Voice input handlers
   const handleVoiceMouseDown = useCallback(async () => {
@@ -1561,44 +1541,39 @@ export const ChatInputArea = memo(function ChatInputArea({
                         setSettingsOpen(true)
                       }}
                       claude={{
-                        models: availableModels.models.filter((m) => !hiddenModels.includes(m.id)),
-                        selectedModelId: selectedModel?.id,
-                        onSelectModel: (modelId) => {
+                        models: availableModels.models,
+                        selectedModelId: selectedModel?.slug,
+                        onSelectModel: (modelSlug) => {
                           const model =
-                            availableModels.models.find((item) => item.id === modelId) ||
+                            availableModels.models.find((item) => item.slug === modelSlug) ||
                             availableModels.models[0]
                           if (!model) return
                           setSelectedModel(model)
-                          setSelectedSubChatModelId(model.id)
-                          setLastSelectedModelId(model.id)
+                          setSelectedSubChatModelId(model.slug)
+                          setLastSelectedModelId(model.slug)
                         },
-                        hasCustomModelConfig: hasCustomClaudeConfig,
                         isOffline: availableModels.isOffline && availableModels.hasOllama,
                         ollamaModels: availableModels.ollamaModels,
                         selectedOllamaModel: currentOllamaModel,
                         recommendedOllamaModel: availableModels.recommendedModel,
                         onSelectOllamaModel: setSelectedOllamaModel,
-                        isConnected: isClaudeConnected,
                         thinkingEnabled,
                         onThinkingChange: setThinkingEnabled,
                       }}
                       codex={{
-                        models: codexUiModels,
-                        selectedModelId: selectedCodexModel.id,
-                        onSelectModel: (modelId) => {
-                          const model = codexUiModels.find((item) => item.id === modelId)
+                        models: codexModels,
+                        selectedModelId: selectedCodexModel.slug,
+                        onSelectModel: (modelSlug) => {
+                          const model = codexModels.find((item) => item.slug === modelSlug)
                           if (!model) return
-                          const nextThinking = model.thinkings.includes(
-                            selectedSubChatCodexThinking as CodexThinkingLevel,
+                          const nextThinking = normalizeCodexThinkingSelection(
+                            model,
+                            selectedSubChatCodexThinking,
                           )
-                            ? (selectedSubChatCodexThinking as CodexThinkingLevel)
-                            : (model.thinkings.includes("high")
-                              ? "high"
-                              : model.thinkings[0]!)
 
-                          setSelectedSubChatCodexModelId(model.id)
+                          setSelectedSubChatCodexModelId(model.slug)
                           setSelectedSubChatCodexThinking(nextThinking)
-                          setLastSelectedCodexModelId(model.id)
+                          setLastSelectedCodexModelId(model.slug)
                           setLastSelectedCodexThinking(nextThinking)
                         },
                         selectedThinking: selectedCodexThinking,
@@ -1606,7 +1581,6 @@ export const ChatInputArea = memo(function ChatInputArea({
                           setSelectedSubChatCodexThinking(thinking)
                           setLastSelectedCodexThinking(thinking)
                         },
-                        isConnected: codexOnboardingCompleted,
                       }}
                     />
                   </div>

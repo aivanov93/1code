@@ -23,7 +23,11 @@ import {
   PopoverTrigger,
 } from "../../../components/ui/popover"
 import { cn } from "../../../lib/utils"
-import type { CodexThinkingLevel } from "../lib/models"
+import type {
+  ClaudeModelOption,
+  CodexModelOption,
+  CodexThinkingLevel,
+} from "../lib/models"
 import { formatCodexThinkingLabel } from "../lib/models"
 
 const CROSS_PROVIDER_DIALOG_DISMISSED_KEY = "agent-model-selector:skip-cross-provider-dialog"
@@ -35,18 +39,6 @@ const CodexIcon = ({ className }: { className?: string }) => (
 )
 
 export type AgentProviderId = "claude-code" | "codex"
-
-type ClaudeModelOption = {
-  id: string
-  name: string
-  version: string
-}
-
-type CodexModelOption = {
-  id: string
-  name: string
-  thinkings: CodexThinkingLevel[]
-}
 
 interface AgentModelSelectorProps {
   open: boolean
@@ -62,24 +54,21 @@ interface AgentModelSelectorProps {
   claude: {
     models: ClaudeModelOption[]
     selectedModelId?: string
-    onSelectModel: (modelId: string) => void
-    hasCustomModelConfig: boolean
+    onSelectModel: (modelSlug: string) => void
     isOffline: boolean
     ollamaModels: string[]
     selectedOllamaModel?: string
     recommendedOllamaModel?: string
     onSelectOllamaModel: (modelId: string) => void
-    isConnected: boolean
     thinkingEnabled: boolean
     onThinkingChange: (enabled: boolean) => void
   }
   codex: {
     models: CodexModelOption[]
     selectedModelId: string
-    onSelectModel: (modelId: string) => void
+    onSelectModel: (modelSlug: string) => void
     selectedThinking: CodexThinkingLevel
     onSelectThinking: (thinking: CodexThinkingLevel) => void
-    isConnected: boolean
   }
 }
 
@@ -87,7 +76,6 @@ type FlatModelItem =
   | { type: "claude"; model: ClaudeModelOption }
   | { type: "codex"; model: CodexModelOption }
   | { type: "ollama"; modelName: string; isRecommended: boolean }
-  | { type: "custom" }
 
 function CodexThinkingSubMenu({
   thinkings,
@@ -343,8 +331,6 @@ export function AgentModelSelector({
           isRecommended: m === claude.recommendedOllamaModel,
         })
       }
-    } else if (claude.hasCustomModelConfig) {
-      items.push({ type: "custom" })
     } else {
       for (const m of claude.models) {
         items.push({ type: "claude", model: m })
@@ -366,16 +352,16 @@ export function AgentModelSelector({
       switch (item.type) {
         case "claude":
           return (
-            item.model.name.toLowerCase().includes(q) ||
-            item.model.version.toLowerCase().includes(q) ||
-            `${item.model.name} ${item.model.version}`.toLowerCase().includes(q)
+            item.model.label.toLowerCase().includes(q) ||
+            item.model.slug.toLowerCase().includes(q)
           )
         case "codex":
-          return item.model.name.toLowerCase().includes(q)
+          return (
+            item.model.label.toLowerCase().includes(q) ||
+            item.model.slug.toLowerCase().includes(q)
+          )
         case "ollama":
           return item.modelName.toLowerCase().includes(q)
-        case "custom":
-          return "custom model".includes(q)
       }
     })
   }, [allModels, search])
@@ -404,13 +390,11 @@ export function AgentModelSelector({
   const isItemSelected = (item: FlatModelItem): boolean => {
     switch (item.type) {
       case "claude":
-        return selectedAgentId === "claude-code" && claude.selectedModelId === item.model.id
+        return selectedAgentId === "claude-code" && claude.selectedModelId === item.model.slug
       case "codex":
-        return selectedAgentId === "codex" && codex.selectedModelId === item.model.id
+        return selectedAgentId === "codex" && codex.selectedModelId === item.model.slug
       case "ollama":
         return selectedAgentId === "claude-code" && claude.selectedOllamaModel === item.modelName
-      case "custom":
-        return selectedAgentId === "claude-code"
     }
   }
 
@@ -473,21 +457,17 @@ export function AgentModelSelector({
       case "claude":
         if (!canSelectProvider("claude-code")) return
         onSelectedAgentIdChange("claude-code")
-        claude.onSelectModel(item.model.id)
+        claude.onSelectModel(item.model.slug)
         break
       case "codex":
         if (!canSelectProvider("codex")) return
         onSelectedAgentIdChange("codex")
-        codex.onSelectModel(item.model.id)
+        codex.onSelectModel(item.model.slug)
         break
       case "ollama":
         if (!canSelectProvider("claude-code")) return
         onSelectedAgentIdChange("claude-code")
         claude.onSelectOllamaModel(item.modelName)
-        break
-      case "custom":
-        if (!canSelectProvider("claude-code")) return
-        onSelectedAgentIdChange("claude-code")
         break
     }
     handleOpenChange(false)
@@ -501,34 +481,28 @@ export function AgentModelSelector({
         return <CodexIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
       case "ollama":
         return <Zap className="h-4 w-4 text-muted-foreground shrink-0" />
-      case "custom":
-        return <ClaudeCodeIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
     }
   }
 
   const getItemLabel = (item: FlatModelItem): string => {
     switch (item.type) {
       case "claude":
-        return `${item.model.name} ${item.model.version}`
+        return item.model.label
       case "codex":
-        return item.model.name
+        return item.model.label
       case "ollama":
         return item.modelName + (item.isRecommended ? " (recommended)" : "")
-      case "custom":
-        return "Custom Model"
     }
   }
 
   const getItemKey = (item: FlatModelItem): string => {
     switch (item.type) {
       case "claude":
-        return `claude-${item.model.id}`
+        return `claude-${item.model.slug}`
       case "codex":
-        return `codex-${item.model.id}`
+        return `codex-${item.model.slug}`
       case "ollama":
         return `ollama-${item.modelName}`
-      case "custom":
-        return "custom"
     }
   }
 
@@ -561,7 +535,7 @@ export function AgentModelSelector({
           {/* Claude thinking toggle */}
           {selectedAgentId === "claude-code" &&
             !claude.isOffline &&
-            !claude.hasCustomModelConfig && (
+            (
             <>
               <div
                 className="flex items-center justify-between min-h-[32px] py-[5px] px-1.5 mx-1"
@@ -583,7 +557,9 @@ export function AgentModelSelector({
 
           {/* Codex thinking level selector with hover sub-menu */}
           {selectedAgentId === "codex" && (() => {
-            const selectedCodexModel = codex.models.find((m) => m.id === codex.selectedModelId) || codex.models[0]
+            const selectedCodexModel =
+              codex.models.find((m) => m.slug === codex.selectedModelId) ||
+              codex.models[0]
             if (!selectedCodexModel) return null
             return (
               <>

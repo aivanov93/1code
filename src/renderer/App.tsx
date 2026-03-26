@@ -90,7 +90,7 @@ function AppContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Check if user has existing CLI config (API key or proxy)
+  // Check if user has existing Claude config or executable
   // Based on PR #29 by @sa4hnd
   const { data: cliConfig, isLoading: isLoadingCliConfig } =
     trpc.claudeCode.hasExistingCliConfig.useQuery()
@@ -103,15 +103,28 @@ function AppContent() {
     }
   }, [billingMethod, anthropicOnboardingCompleted, setBillingMethod])
 
-  // Auto-skip onboarding if user has existing CLI config (API key or proxy)
-  // This allows users with ANTHROPIC_API_KEY to use the app without OAuth
+  // Auto-skip onboarding if user already has a working Claude setup.
+  // This includes API key / proxy config and external CLI resolution.
   useEffect(() => {
     if (cliConfig?.hasConfig && !billingMethod) {
-      console.log("[App] Detected existing CLI config, auto-completing onboarding")
+      console.log(
+        "[App] Detected existing Claude setup, auto-completing onboarding",
+        {
+          baseUrl: cliConfig.baseUrl,
+          claudeExecutablePath: cliConfig.claudeExecutablePath,
+        },
+      )
       setBillingMethod("api-key")
       setApiKeyOnboardingCompleted(true)
     }
-  }, [cliConfig?.hasConfig, billingMethod, setBillingMethod, setApiKeyOnboardingCompleted])
+  }, [
+    cliConfig?.baseUrl,
+    cliConfig?.claudeExecutablePath,
+    cliConfig?.hasConfig,
+    billingMethod,
+    setBillingMethod,
+    setApiKeyOnboardingCompleted,
+  ])
 
   // Fetch projects to validate selectedProject exists
   const { data: projects, isLoading: isLoadingProjects } =

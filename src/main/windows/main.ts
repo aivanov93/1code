@@ -667,15 +667,27 @@ export function createWindow(options?: { chatId?: string; subChatId?: string }):
     })
   }
 
-  // Show window when ready
-  window.on("ready-to-show", () => {
-    console.log("[Main] Window", window.id, "ready to show")
+  let windowShown = false
+  const showWindow = (reason: string) => {
+    if (windowShown || window.isDestroyed()) return
+    windowShown = true
+    console.log(`[Main] Showing window ${window.id} via ${reason}`)
     // Start with traffic lights hidden - the renderer will show them
     // after hydration based on the persisted sidebar state
     if (process.platform === "darwin") {
       window.setWindowButtonVisibility(false)
     }
     window.show()
+  }
+
+  const showWindowFallbackTimer = setTimeout(() => {
+    showWindow("timeout-fallback")
+  }, 3000)
+
+  // Show window when ready
+  window.on("ready-to-show", () => {
+    console.log("[Main] Window", window.id, "ready to show")
+    showWindow("ready-to-show")
   })
 
   // Emit fullscreen change events and manage traffic lights
@@ -776,6 +788,7 @@ export function createWindow(options?: { chatId?: string; subChatId?: string }):
 
   // Handle window close
   window.on("closed", () => {
+    clearTimeout(showWindowFallbackTimer)
     console.log(`[Main] Window ${window.id} closed`)
     // windowManager handles cleanup via 'closed' event listener
   })
@@ -836,6 +849,7 @@ export function createWindow(options?: { chatId?: string; subChatId?: string }):
   // Log page load - traffic light visibility is managed by the renderer
   window.webContents.on("did-finish-load", () => {
     console.log("[Main] Page finished loading in window", window.id)
+    showWindow("did-finish-load")
   })
   window.webContents.on(
     "did-fail-load",

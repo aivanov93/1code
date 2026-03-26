@@ -35,6 +35,7 @@ import {
 } from "../../lib/atoms"
 import { trpc } from "../../lib/trpc"
 import { appStore } from "../../lib/jotai-store"
+import { DESKTOP_LOCAL_ONLY } from "../../../shared/local-mode"
 import {
   useAgentSubChatStore,
   type SubChatMeta,
@@ -240,7 +241,7 @@ export function AgentsSubChatsSidebar({
   // Fetch agent chats for navigation after archive
   const { data: agentChats } = api.agents.getAgentChats.useQuery(
     { teamId: selectedTeamId! },
-    { enabled: !!selectedTeamId },
+    { enabled: !DESKTOP_LOCAL_ONLY && !!selectedTeamId },
   )
 
   const utils = trpc.useUtils()

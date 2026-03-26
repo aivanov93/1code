@@ -303,17 +303,6 @@ export const api = {
         }
       },
     },
-    generateSubChatName: {
-      useMutation: () => {
-        const mutation = trpc.chats.generateSubChatName.useMutation()
-        return {
-          mutateAsync: async (args: { userMessage: string; ollamaModel?: string | null }) => {
-            return mutation.mutateAsync({ userMessage: args.userMessage, ollamaModel: args.ollamaModel })
-          },
-          isPending: mutation.isPending,
-        }
-      },
-    },
     updateSubChatMode: {
       useMutation: (opts?: { onSuccess?: AnyFn; onError?: AnyFn }) => {
         const mutation = trpc.chats.updateSubChatMode.useMutation({

@@ -25,6 +25,7 @@ import {
   chatSourceModeAtom,
   selectedTeamIdAtom,
   type ChatSourceMode,
+  type SettingsTab,
   showWorkspaceIconAtom,
   betaKanbanEnabledAtom,
   betaAutomationsEnabledAtom,
@@ -43,11 +44,6 @@ import { ArchivePopover } from "../agents/ui/archive-popover"
 import { ChevronDown, MoreHorizontal, Columns3, ArrowUpRight } from "lucide-react"
 import { useQuery } from "@tanstack/react-query"
 import { remoteTrpc } from "../../lib/remote-trpc"
-// import { useRouter } from "next/navigation" // Desktop doesn't use next/navigation
-// import { useCombinedAuth } from "@/lib/hooks/use-combined-auth"
-const useCombinedAuth = () => ({ userId: null })
-// import { AuthDialog } from "@/components/auth/auth-dialog"
-const AuthDialog = () => null
 // Desktop: archive is handled inline, not via hook
 // import { DiscordIcon } from "@/components/icons"
 import { DiscordIcon } from "../../icons"
@@ -87,7 +83,6 @@ import {
   IconDoubleChevronLeft,
   SettingsIcon,
   PlusIcon,
-  ProfileIcon,
   PublisherStudioIcon,
   SearchIcon,
   GitHubLogo,
@@ -137,6 +132,7 @@ import { Checkbox } from "../../components/ui/checkbox"
 import { useHaptic } from "./hooks/use-haptic"
 import { TypewriterText } from "../../components/ui/typewriter-text"
 import { exportChat, copyChat, type ExportFormat } from "../agents/lib/export-chat"
+import { DESKTOP_LOCAL_ONLY } from "../../../shared/local-mode"
 
 // Feedback URL: uses env variable for hosted version, falls back to public Discord for open source
 const FEEDBACK_URL =
@@ -1052,7 +1048,7 @@ const ChatListSection = React.memo(function ChatListSection({
 interface AgentsSidebarProps {
   userId?: string | null | undefined
   clerkUser?: any
-  desktopUser?: { id: string; email: string; name?: string } | null
+  desktopUser?: { id: string; email: string; name?: string | null } | null
   onSignOut?: () => void
   onToggleSidebar?: () => void
   isMobileFullscreen?: boolean
@@ -1151,6 +1147,7 @@ function SidebarAutomationsIcon(props: React.SVGProps<SVGSVGElement>) {
 // Isolated Inbox Button - full-width navigation link matching web layout
 const InboxButton = memo(function InboxButton() {
   const automationsEnabled = useAtomValue(betaAutomationsEnabledAtom)
+  const inboxEnabled = automationsEnabled && !DESKTOP_LOCAL_ONLY
   const desktopView = useAtomValue(desktopViewAtom)
   const setSelectedChatId = useSetAtom(selectedAgentChatIdAtom)
   const setSelectedDraftId = useSetAtom(selectedDraftIdAtom)
@@ -1161,7 +1158,7 @@ const InboxButton = memo(function InboxButton() {
   const { data: unreadData } = useQuery({
     queryKey: ["automations", "inboxUnreadCount", teamId],
     queryFn: () => remoteTrpc.automations.getInboxUnreadCount.query({ teamId: teamId! }),
-    enabled: !!teamId && automationsEnabled,
+    enabled: !!teamId && inboxEnabled,
     refetchInterval: 30_000,
   })
   const inboxUnreadCount = unreadData?.count ?? 0
@@ -1173,7 +1170,7 @@ const InboxButton = memo(function InboxButton() {
     setDesktopView("inbox")
   }, [setSelectedChatId, setSelectedDraftId, setShowNewChatForm, setDesktopView])
 
-  if (!automationsEnabled) return null
+  if (!inboxEnabled) return null
 
   const isActive = desktopView === "inbox"
 
@@ -1207,7 +1204,7 @@ const AutomationsButton = memo(function AutomationsButton() {
     window.desktopApi.openExternal("https://21st.dev/agents/app/automations")
   }, [])
 
-  if (!automationsEnabled) return null
+  if (!automationsEnabled || DESKTOP_LOCAL_ONLY) return null
 
   return (
     <button
@@ -1274,29 +1271,21 @@ interface SidebarHeaderProps {
   isDesktop: boolean
   isFullscreen: boolean | null
   isMobileFullscreen: boolean
-  userId: string | null | undefined
-  desktopUser: { id: string; email: string; name?: string } | null
-  onSignOut: () => void
   onToggleSidebar?: () => void
   setSettingsDialogOpen: (open: boolean) => void
-  setSettingsActiveTab: (tab: string) => void
-  setShowAuthDialog: (open: boolean) => void
+  setSettingsActiveTab: (tab: SettingsTab) => void
   handleSidebarMouseEnter: () => void
-  handleSidebarMouseLeave: () => void
-  closeButtonRef: React.RefObject<HTMLDivElement>
+  handleSidebarMouseLeave: (e: React.MouseEvent) => void
+  closeButtonRef: React.RefObject<HTMLDivElement | null>
 }
 
 const SidebarHeader = memo(function SidebarHeader({
   isDesktop,
   isFullscreen,
   isMobileFullscreen,
-  userId,
-  desktopUser,
-  onSignOut,
   onToggleSidebar,
   setSettingsDialogOpen,
   setSettingsActiveTab,
-  setShowAuthDialog,
   handleSidebarMouseEnter,
   handleSidebarMouseLeave,
   closeButtonRef,
@@ -1412,183 +1401,56 @@ const SidebarHeader = memo(function SidebarHeader({
                 className="w-52 pt-0"
                 sideOffset={8}
               >
-                {userId ? (
-                  <>
-                    {/* Project section at the top */}
-                    <div className="relative rounded-t-xl border-b overflow-hidden">
-                      <div className="absolute inset-0 bg-popover brightness-110" />
-                      <div className="relative pl-2 pt-1.5 pb-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div className="w-8 h-8 rounded flex items-center justify-center bg-background flex-shrink-0 overflow-hidden">
-                            <Logo className="w-4 h-4" />
-                          </div>
-                          <div className="flex-1 min-w-0 overflow-hidden">
-                            <div className="font-medium text-sm text-foreground truncate">
-                              {desktopUser?.name || "User"}
-                            </div>
-                            <div className="text-xs text-muted-foreground truncate">
-                              {desktopUser?.email}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                <DropdownMenuItem
+                  className="gap-2"
+                  onSelect={() => {
+                    setIsDropdownOpen(false)
+                    setSettingsActiveTab("preferences")
+                    setSettingsDialogOpen(true)
+                  }}
+                >
+                  <SettingsIcon className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                  Settings
+                </DropdownMenuItem>
 
-                    {/* Settings */}
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger className="gap-2">
+                    <QuestionCircleIcon className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                    <span className="flex-1">Help</span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent
+                    className="w-36"
+                    sideOffset={6}
+                    alignOffset={-4}
+                  >
                     <DropdownMenuItem
-                      className="gap-2"
                       onSelect={() => {
+                        window.open(
+                          "https://discord.gg/8ektTZGnj4",
+                          "_blank",
+                        )
                         setIsDropdownOpen(false)
-                        setSettingsActiveTab("preferences")
-                        setSettingsDialogOpen(true)
                       }}
+                      className="gap-2"
                     >
-                      <SettingsIcon className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                      Settings
+                      <DiscordIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <span className="flex-1">Discord</span>
                     </DropdownMenuItem>
-
-                    {/* Help Submenu */}
-                    <DropdownMenuSub>
-                      <DropdownMenuSubTrigger className="gap-2">
-                        <QuestionCircleIcon className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                        <span className="flex-1">Help</span>
-                      </DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent
-                        className="w-36"
-                        sideOffset={6}
-                        alignOffset={-4}
-                      >
-                        <DropdownMenuItem
-                          onSelect={() => {
-                            window.open(
-                              "https://discord.gg/8ektTZGnj4",
-                              "_blank",
-                            )
-                            setIsDropdownOpen(false)
-                          }}
-                          className="gap-2"
-                        >
-                          <DiscordIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <span className="flex-1">Discord</span>
-                        </DropdownMenuItem>
-                        {!isMobileFullscreen && (
-                          <DropdownMenuItem
-                            onSelect={() => {
-                              setIsDropdownOpen(false)
-                              setSettingsActiveTab("keyboard")
-                              setSettingsDialogOpen(true)
-                            }}
-                            className="gap-2"
-                          >
-                            <KeyboardIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                            <span className="flex-1">Shortcuts</span>
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-
-                    <DropdownMenuSeparator />
-
-                    {/* Log out */}
-                    <div className="">
+                    {!isMobileFullscreen && (
                       <DropdownMenuItem
-                        className="gap-2"
-                        onSelect={() => onSignOut()}
-                      >
-                        <svg
-                          className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <path
-                            d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                          <polyline
-                            points="16,17 21,12 16,7"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                          <line
-                            x1="21"
-                            y1="12"
-                            x2="9"
-                            y2="12"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                        Log out
-                      </DropdownMenuItem>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    {/* Login for unauthenticated users */}
-                    <div className="">
-                      <DropdownMenuItem
-                        className="gap-2"
                         onSelect={() => {
                           setIsDropdownOpen(false)
-                          setShowAuthDialog(true)
+                          setSettingsActiveTab("keyboard")
+                          setSettingsDialogOpen(true)
                         }}
+                        className="gap-2"
                       >
-                        <ProfileIcon className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                        Login
+                        <KeyboardIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span className="flex-1">Shortcuts</span>
                       </DropdownMenuItem>
-                    </div>
-
-                    <DropdownMenuSeparator />
-
-                    {/* Help Submenu */}
-                    <DropdownMenuSub>
-                      <DropdownMenuSubTrigger className="gap-2">
-                        <QuestionCircleIcon className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                        <span className="flex-1">Help</span>
-                      </DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent
-                        className="w-36"
-                        sideOffset={6}
-                        alignOffset={-4}
-                      >
-                        <DropdownMenuItem
-                          onSelect={() => {
-                            window.open(
-                              "https://discord.gg/8ektTZGnj4",
-                              "_blank",
-                            )
-                            setIsDropdownOpen(false)
-                          }}
-                          className="gap-2"
-                        >
-                          <DiscordIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <span className="flex-1">Discord</span>
-                        </DropdownMenuItem>
-                        {!isMobileFullscreen && (
-                          <DropdownMenuItem
-                            onSelect={() => {
-                              setIsDropdownOpen(false)
-                              setSettingsActiveTab("keyboard")
-                              setSettingsDialogOpen(true)
-                            }}
-                            className="gap-2"
-                          >
-                            <KeyboardIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                            <span className="flex-1">Shortcuts</span>
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                  </>
-                )}
+                    )}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -1758,8 +1620,6 @@ export function AgentsSidebar({
       setDesktopViewForSettings(null)
     }
   }, [setDesktopViewForSettings, setSidebarOpenForSettings])
-  const { isLoaded: isAuthLoaded } = useCombinedAuth()
-  const [showAuthDialog, setShowAuthDialog] = useState(false)
   const setCreateTeamDialogOpen = useSetAtom(createTeamDialogOpenAtom)
 
   // Debug mode for testing first-time user experience
@@ -1773,7 +1633,6 @@ export function AgentsSidebar({
 
   // Keep chatSourceModeAtom for backwards compatibility (used in other places)
   const [chatSourceMode, setChatSourceMode] = useAtom(chatSourceModeAtom)
-  const teamId = useAtomValue(selectedTeamIdAtom)
 
   // Sync chatSourceMode with selectedChatIsRemote on startup
   // This fixes the race condition where atoms load independently from localStorage
@@ -1791,8 +1650,7 @@ export function AgentsSidebar({
   // Fetch all local chats (no project filter)
   const { data: localChats } = trpc.chats.list.useQuery({})
 
-  // Fetch user's teams (same as web) - always enabled to allow merged list
-  const { data: teams, isLoading: isTeamsLoading, isError: isTeamsError } = useUserTeams(true)
+  useUserTeams(!DESKTOP_LOCAL_ONLY)
 
   // Fetch remote sandbox chats (same as web) - requires teamId
   const { data: remoteChats } = useRemoteChats()
@@ -3120,13 +2978,9 @@ export function AgentsSidebar({
         isDesktop={isDesktop}
         isFullscreen={isFullscreen}
         isMobileFullscreen={isMobileFullscreen}
-        userId={userId}
-        desktopUser={desktopUser}
-        onSignOut={onSignOut}
         onToggleSidebar={onToggleSidebar}
         setSettingsDialogOpen={setSettingsDialogOpen}
         setSettingsActiveTab={setSettingsActiveTab}
-        setShowAuthDialog={setShowAuthDialog}
         handleSidebarMouseEnter={handleSidebarMouseEnter}
         handleSidebarMouseLeave={handleSidebarMouseLeave}
         closeButtonRef={closeButtonRef}
@@ -3501,10 +3355,6 @@ export function AgentsSidebar({
           />,
           document.body,
         )}
-
-      {/* Auth Dialog */}
-      <AuthDialog open={showAuthDialog} onOpenChange={setShowAuthDialog} />
-
       {/* Rename Dialog */}
       <AgentsRenameSubChatDialog
         isOpen={renameDialogOpen}

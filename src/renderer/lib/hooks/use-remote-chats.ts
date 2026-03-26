@@ -3,6 +3,7 @@ import { useAtom, useAtomValue } from "jotai"
 import { useCallback, useEffect } from "react"
 import { selectedTeamIdAtom } from "../atoms"
 import { remoteApi, type RemoteChat, type RemoteChatWithSubChats } from "../remote-api"
+import { DESKTOP_LOCAL_ONLY } from "../../../shared/local-mode"
 
 /**
  * Fetch user's teams and auto-select first team if none selected
@@ -10,6 +11,7 @@ import { remoteApi, type RemoteChat, type RemoteChatWithSubChats } from "../remo
  */
 export function useUserTeams(enabled: boolean = true) {
   const [teamId, setTeamId] = useAtom(selectedTeamIdAtom)
+  const remoteEnabled = enabled && !DESKTOP_LOCAL_ONLY
 
   const query = useQuery({
     queryKey: ["user-teams"],
@@ -18,7 +20,7 @@ export function useUserTeams(enabled: boolean = true) {
     gcTime: Infinity,           // Never garbage collect
     refetchOnMount: true,       // Revalidate if stale
     refetchOnWindowFocus: false,
-    enabled,
+    enabled: remoteEnabled,
     retry: 1,
   })
 
@@ -63,7 +65,7 @@ export function useRemoteChats() {
   return useQuery({
     queryKey: ["remote-chats", teamId],
     queryFn: () => remoteApi.getAgentChats(teamId!),
-    enabled: !!teamId,
+    enabled: !DESKTOP_LOCAL_ONLY && !!teamId,
     staleTime: 30 * 1000,       // Consider stale after 30s
     gcTime: 30 * 60 * 1000,     // Keep in cache 30 min
     refetchOnMount: true,       // Revalidate on mount
@@ -79,7 +81,7 @@ export function useRemoteChat(chatId: string | null) {
   return useQuery({
     queryKey: ["remote-chat", chatId],
     queryFn: () => remoteApi.getAgentChat(chatId!),
-    enabled: !!chatId,
+    enabled: !DESKTOP_LOCAL_ONLY && !!chatId,
     staleTime: 60 * 1000,      // 1 minute
     gcTime: 30 * 60 * 1000,    // 30 minutes
   })
@@ -112,7 +114,7 @@ export function useRemoteArchivedChats() {
   return useQuery({
     queryKey: ["remote-archived-chats", teamId],
     queryFn: () => remoteApi.getArchivedChats(teamId!),
-    enabled: !!teamId,
+    enabled: !DESKTOP_LOCAL_ONLY && !!teamId,
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
   })

@@ -67,7 +67,6 @@ import {
   defaultAgentModeAtom,
   isDesktopAtom, isFullscreenAtom,
   sessionInfoAtom,
-  selectedOllamaModelAtom,
   soundNotificationsEnabledAtom
 } from "../../../lib/atoms"
 import { useFileChangeListener, useGitWatcher } from "../../../lib/hooks/use-file-change-listener"
@@ -228,7 +227,6 @@ import { SubChatSelector } from "../ui/sub-chat-selector"
 import { SubChatStatusCard } from "../ui/sub-chat-status-card"
 import { SplitViewContainer } from "../ui/split-view-container"
 import { TextSelectionPopover } from "../ui/text-selection-popover"
-import { autoRenameAgentChat } from "../utils/auto-rename"
 import { generateCommitToPrMessage, generatePrMessage, generateReviewMessage } from "../utils/pr-message"
 import { ChatInputArea } from "./chat-input-area"
 import { IsolatedMessagesSection } from "./isolated-messages-section"
@@ -327,21 +325,6 @@ function groupExploringTools(parts: any[], nestedToolIds: Set<string>): any[] {
     result.push(...currentGroup)
   }
   return result
-}
-
-// Get the ID of the first sub-chat by creation date
-function getFirstSubChatId(
-  subChats:
-    | Array<{ id: string; created_at?: Date | string | null }>
-    | undefined,
-): string | null {
-  if (!subChats?.length) return null
-  const sorted = [...subChats].sort(
-    (a, b) =>
-      (a.created_at ? new Date(a.created_at).getTime() : 0) -
-      (b.created_at ? new Date(b.created_at).getTime() : 0),
-  )
-  return sorted[0]?.id ?? null
 }
 
 // Layout constants for chat header and sticky messages
@@ -1905,8 +1888,6 @@ const ChatViewInner = memo(function ChatViewInner({
   subChatId,
   parentChatId,
   provider = "claude-code",
-  isFirstSubChat,
-  onAutoRename,
   onCreateNewSubChat,
   onProviderChange,
   refreshDiff,
@@ -1933,8 +1914,6 @@ const ChatViewInner = memo(function ChatViewInner({
   subChatId: string
   parentChatId: string
   provider?: "claude-code" | "codex"
-  isFirstSubChat: boolean
-  onAutoRename: (userMessage: string, subChatId: string) => void
   onCreateNewSubChat?: () => void
   onProviderChange?: (
     subChatId: string,
@@ -1960,7 +1939,6 @@ const ChatViewInner = memo(function ChatViewInner({
   workspaceBranch?: string | null
   workspaceRepoName?: string | null
 }) {
-  const hasTriggeredRenameRef = useRef(false)
   const hasTriggeredAutoGenerateRef = useRef(false)
   const isVisiblePane = isActive || isSplitPane
 
@@ -2375,11 +2353,10 @@ const ChatViewInner = memo(function ChatViewInner({
     Record<string, boolean>
   >({})
 
-  // Track chat changes for rename trigger reset
+  // Track chat changes for auto-generate reset
   const chatRef = useRef<Chat<any> | null>(null)
 
   if (prevSubChatIdRef.current !== subChatId) {
-    hasTriggeredRenameRef.current = false // Reset on sub-chat change
     hasTriggeredAutoGenerateRef.current = false // Reset auto-generate on sub-chat change
     prevSubChatIdRef.current = subChatId
   }
@@ -3613,7 +3590,6 @@ const ChatViewInner = memo(function ChatViewInner({
   useToggleFocusOnCmdEsc(editorRef, isActive)
 
   // Auto-trigger AI response when we have initial message but no response yet
-  // Also trigger auto-rename for initial sub-chat with pre-populated message
   // IMPORTANT: Skip if there's an active streamId (prevents double-generation on resume)
   useEffect(() => {
     if (
@@ -3623,27 +3599,13 @@ const ChatViewInner = memo(function ChatViewInner({
       !hasTriggeredAutoGenerateRef.current
     ) {
       hasTriggeredAutoGenerateRef.current = true
-      // Trigger rename for pre-populated initial message (from createAgentChat)
-      if (!hasTriggeredRenameRef.current && isFirstSubChat) {
-        const firstMsg = messages[0]
-        if (firstMsg?.role === "user") {
-          const textPart = firstMsg.parts?.find((p: any) => p.type === "text")
-          if (textPart && "text" in textPart) {
-            hasTriggeredRenameRef.current = true
-            onAutoRename(textPart.text, subChatId)
-          }
-        }
-      }
       regenerate()
     }
   }, [
     status,
     messages,
     regenerate,
-    isFirstSubChat,
-    onAutoRename,
     streamId,
-    subChatId,
   ])
 
   // Initialize scroll position on mount or tab re-activation.
@@ -3922,12 +3884,6 @@ const ChatViewInner = memo(function ChatViewInner({
       mode: subChatModeRef.current,
     })
 
-    // Trigger auto-rename on first message in a new sub-chat
-    if (messagesLengthRef.current === 0 && !hasTriggeredRenameRef.current) {
-      hasTriggeredRenameRef.current = true
-      onAutoRename(finalText || "Image message", subChatId)
-    }
-
     // Build message parts: images first, then files, then text
     // Include base64Data for API transmission
     const parts: any[] = [
@@ -4063,7 +4019,6 @@ const ChatViewInner = memo(function ChatViewInner({
     onRestoreWorkspace,
     parentChatId,
     subChatId,
-    onAutoRename,
     clearAll,
     clearTextContexts,
     clearPastedTexts,
@@ -4864,7 +4819,6 @@ export function ChatView({
   const isFullscreen = useAtomValue(isFullscreenAtom)
   const sidebarOpen = useAtomValue(agentsSidebarOpenAtom)
   const claudeModels = useAtomValue(claudeModelCatalogAtom)
-  const selectedOllamaModel = useAtomValue(selectedOllamaModelAtom)
   const setLoadingSubChats = useSetAtom(loadingSubChatsAtom)
   const unseenChanges = useAtomValue(agentsUnseenChangesAtom)
   const setUnseenChanges = useSetAtom(agentsUnseenChangesAtom)
@@ -5317,9 +5271,6 @@ export function ChatView({
 
   // tRPC mutations for renaming
   const renameSubChatMutation = api.agents.renameSubChat.useMutation()
-  const renameChatMutation = api.agents.renameChat.useMutation()
-  const generateSubChatNameMutation =
-    api.agents.generateSubChatName.useMutation()
 
   // PR creation loading state - using atom to allow ChatViewInner to reset it
   const [isCreatingPr, setIsCreatingPr] = useAtom(isCreatingPrAtom)
@@ -7303,103 +7254,6 @@ Make sure to preserve all functionality from both branches when resolving confli
     return () => window.removeEventListener("keydown", handleKeyDown, true)
   }, [isArchived, restoreWorkspaceMutation.isPending, handleRestoreWorkspace])
 
-  // Handle auto-rename for sub-chat and parent chat
-  // Receives subChatId as param to avoid stale closure issues
-  const handleAutoRename = useCallback(
-    (userMessage: string, subChatId: string) => {
-      // Check if this is the first sub-chat using agentSubChats directly
-      // to avoid race condition with store initialization
-      const firstSubChatId = getFirstSubChatId(agentSubChats)
-      const isFirst = firstSubChatId === subChatId
-
-      autoRenameAgentChat({
-        subChatId,
-        parentChatId: chatId,
-        userMessage,
-        isFirstSubChat: isFirst,
-        generateName: async (msg) => {
-          return generateSubChatNameMutation.mutateAsync({ userMessage: msg, ollamaModel: selectedOllamaModel })
-        },
-        renameSubChat: async (input) => {
-          await renameSubChatMutation.mutateAsync(input)
-        },
-        renameChat: async (input) => {
-          await renameChatMutation.mutateAsync(input)
-        },
-        updateSubChatName: (subChatIdToUpdate, name) => {
-          // Update local store
-          useAgentSubChatStore
-            .getState()
-            .updateSubChatName(subChatIdToUpdate, name)
-          // Also update query cache so init effect doesn't overwrite
-          utils.agents.getAgentChat.setData({ chatId }, (old) => {
-            if (!old) return old
-            const existsInCache = old.subChats.some(
-              (sc) => sc.id === subChatIdToUpdate,
-            )
-            if (!existsInCache) {
-              // Sub-chat not in cache yet (DB save still in flight) - add it
-              return {
-                ...old,
-                subChats: [
-                  ...old.subChats,
-                  {
-                    id: subChatIdToUpdate,
-                    name,
-                    created_at: new Date(),
-                    updated_at: new Date(),
-                    messages: "[]",
-                    mode: "agent",
-                    stream_id: null,
-                    chat_id: chatId,
-                  },
-                ],
-              }
-            }
-            return {
-              ...old,
-              subChats: old.subChats.map((sc) =>
-                sc.id === subChatIdToUpdate ? { ...sc, name } : sc,
-              ),
-            }
-          })
-        },
-        updateChatName: (chatIdToUpdate, name) => {
-          // Optimistic update for sidebar (list query)
-          // On desktop, selectedTeamId is always null, so we update unconditionally
-          utils.agents.getAgentChats.setData(
-            { teamId: selectedTeamId },
-            (old) => {
-              if (!old) return old
-              return old.map((c) =>
-                c.id === chatIdToUpdate ? { ...c, name } : c,
-              )
-            },
-          )
-          // Optimistic update for header (single chat query)
-          utils.agents.getAgentChat.setData(
-            { chatId: chatIdToUpdate },
-            (old) => {
-              if (!old) return old
-              return { ...old, name }
-            },
-          )
-        },
-      })
-    },
-    [
-      chatId,
-      agentSubChats,
-      generateSubChatNameMutation,
-      renameSubChatMutation,
-      renameChatMutation,
-      selectedTeamId,
-      selectedOllamaModel,
-      utils.agents.getAgentChats,
-      utils.agents.getAgentChat,
-    ],
-  )
-
   // Get or create Chat instance for active sub-chat
   const activeChat = useMemo(() => {
     if (!activeSubChatId || !agentChat) {
@@ -7407,13 +7261,6 @@ Make sure to preserve all functionality from both branches when resolving confli
     }
     return getOrCreateChat(activeSubChatId)
   }, [activeSubChatId, agentChat, getOrCreateChat, chatId, chatWorkingDir])
-
-  // Check if active sub-chat is the first one (for renaming parent chat)
-  // Use agentSubChats directly to avoid race condition with store initialization
-  const isFirstSubChatActive = useMemo(() => {
-    if (!activeSubChatId) return false
-    return getFirstSubChatId(agentSubChats) === activeSubChatId
-  }, [activeSubChatId, agentSubChats])
 
   // Determine if chat header should be hidden
   const shouldHideChatHeader =
@@ -7652,7 +7499,6 @@ Make sure to preserve all functionality from both branches when resolving confli
                 <SplitViewContainer
                   panes={splitPaneIds.flatMap((paneId) => {
                     const chat = getOrCreateChat(paneId)
-                    const isFirstSubChat = getFirstSubChatId(agentSubChats) === paneId
                     const belongsToWorkspace = agentSubChats.some(sc => sc.id === paneId) ||
                                               allSubChats.some(sc => sc.id === paneId)
 
@@ -7679,8 +7525,6 @@ Make sure to preserve all functionality from both branches when resolving confli
                             subChatId={paneId}
                             parentChatId={chatId}
                             provider={inferProviderFromMessages(paneId)}
-                            isFirstSubChat={isFirstSubChat}
-                            onAutoRename={handleAutoRename}
                             onCreateNewSubChat={handleCreateNewSubChat}
                             onProviderChange={handleProviderChange}
                             teamId={selectedTeamId || undefined}
@@ -7709,7 +7553,6 @@ Make sure to preserve all functionality from both branches when resolving confli
                         .filter(id => !splitPaneIds.includes(id))
                         .map(subChatId => {
                           const chat = getOrCreateChat(subChatId)
-                          const isFirstSubChat = getFirstSubChatId(agentSubChats) === subChatId
                           const belongsToWorkspace = agentSubChats.some(sc => sc.id === subChatId) ||
                                                     allSubChats.some(sc => sc.id === subChatId)
                           if (!chat || !belongsToWorkspace) return null
@@ -7729,8 +7572,6 @@ Make sure to preserve all functionality from both branches when resolving confli
                                 subChatId={subChatId}
                                 parentChatId={chatId}
                                 provider={inferProviderFromMessages(subChatId)}
-                                isFirstSubChat={isFirstSubChat}
-                                onAutoRename={handleAutoRename}
                                 onCreateNewSubChat={handleCreateNewSubChat}
                                 onProviderChange={handleProviderChange}
                                 teamId={selectedTeamId || undefined}
@@ -7759,8 +7600,6 @@ Make sure to preserve all functionality from both branches when resolving confli
                 tabsToRender.map(subChatId => {
                 const chat = getOrCreateChat(subChatId)
                 const isActive = subChatId === activeSubChatId
-                const isFirstSubChat = getFirstSubChatId(agentSubChats) === subChatId
-
                 // Defense in depth: double-check workspace ownership
                 // Use agentSubChats (server data) as primary source, fall back to allSubChats for optimistic updates
                 // This fixes the race condition where allSubChats is empty after setChatId but before setAllSubChats
@@ -7792,8 +7631,6 @@ Make sure to preserve all functionality from both branches when resolving confli
                       subChatId={subChatId}
                       parentChatId={chatId}
                       provider={inferProviderFromMessages(subChatId)}
-                      isFirstSubChat={isFirstSubChat}
-                      onAutoRename={handleAutoRename}
                       onCreateNewSubChat={handleCreateNewSubChat}
                       onProviderChange={handleProviderChange}
                       teamId={selectedTeamId || undefined}

@@ -18,8 +18,10 @@ import {
   anthropicOnboardingCompletedAtom,
   customHotkeysAtom,
   betaKanbanEnabledAtom,
+  chatSourceModeAtom,
+  selectedTeamIdAtom,
 } from "../../lib/atoms"
-import { selectedAgentChatIdAtom, selectedProjectAtom, selectedDraftIdAtom, showNewChatFormAtom, desktopViewAtom, fileSearchDialogOpenAtom } from "../agents/atoms"
+import { selectedAgentChatIdAtom, selectedProjectAtom, selectedDraftIdAtom, showNewChatFormAtom, desktopViewAtom, fileSearchDialogOpenAtom, selectedChatIsRemoteAtom } from "../agents/atoms"
 import { trpc } from "../../lib/trpc"
 import { useAgentsHotkeys } from "../agents/lib/agents-hotkeys-manager"
 import { toggleSearchAtom } from "../agents/search"
@@ -35,6 +37,7 @@ import { useUpdateChecker } from "../../lib/hooks/use-update-checker"
 import { useAgentSubChatStore } from "../agents/stores/sub-chat-store"
 import { QueueProcessor } from "../agents/components/queue-processor"
 import { SettingsSidebar } from "../settings/settings-sidebar"
+import { DESKTOP_LOCAL_ONLY } from "../../../shared/local-mode"
 
 // ============================================================================
 // Constants
@@ -98,7 +101,11 @@ export function AgentsLayout() {
   const desktopView = useAtomValue(desktopViewAtom)
   const setFileSearchDialogOpen = useSetAtom(fileSearchDialogOpenAtom)
   const [selectedChatId, setSelectedChatId] = useAtom(selectedAgentChatIdAtom)
+  const [selectedChatIsRemote, setSelectedChatIsRemote] = useAtom(selectedChatIsRemoteAtom)
   const [selectedProject, setSelectedProject] = useAtom(selectedProjectAtom)
+  const [chatSourceMode, setChatSourceMode] = useAtom(chatSourceModeAtom)
+  const selectedTeamId = useAtomValue(selectedTeamIdAtom)
+  const setSelectedTeamId = useSetAtom(selectedTeamIdAtom)
   const setSelectedDraftId = useSetAtom(selectedDraftIdAtom)
   const setShowNewChatForm = useSetAtom(showNewChatFormAtom)
   const betaKanbanEnabled = useAtomValue(betaKanbanEnabledAtom)
@@ -110,6 +117,35 @@ export function AgentsLayout() {
   const setCodexOnboardingCompleted = useSetAtom(codexOnboardingCompletedAtom)
   const setBillingMethod = useSetAtom(billingMethodAtom)
   const claudeLoginModalConfig = useAtomValue(claudeLoginModalConfigAtom)
+
+  useEffect(() => {
+    if (!DESKTOP_LOCAL_ONLY) return
+
+    if (selectedTeamId) {
+      setSelectedTeamId(null)
+    }
+
+    if (desktopView === "automations" || desktopView === "automations-detail" || desktopView === "inbox") {
+      setDesktopView(null)
+    }
+    if (selectedChatIsRemote) {
+      setSelectedChatId(null)
+      setSelectedChatIsRemote(false)
+    }
+    if (chatSourceMode !== "local") {
+      setChatSourceMode("local")
+    }
+  }, [
+    chatSourceMode,
+    desktopView,
+    selectedChatIsRemote,
+    selectedTeamId,
+    setChatSourceMode,
+    setDesktopView,
+    setSelectedChatId,
+    setSelectedChatIsRemote,
+    setSelectedTeamId,
+  ])
 
   // Fetch projects to validate selectedProject exists
   const { data: projects, isLoading: isLoadingProjects } =

@@ -181,7 +181,6 @@ export const clearSubChatSelectionAtom = atom(null, (_get, set) => {
 
 // Settings dialog
 export type SettingsTab =
-  | "profile"
   | "appearance"
   | "preferences"
   | "models"

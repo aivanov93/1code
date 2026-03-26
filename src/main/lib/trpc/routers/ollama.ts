@@ -9,7 +9,7 @@ import { publicProcedure, router } from "../index"
 
 /**
  * Generate text using local Ollama model
- * Used for chat title generation and commit messages in offline mode
+ * Used for commit message generation in offline mode
  * @param prompt - The prompt to send to Ollama
  * @param model - Optional model to use (if not provided, uses recommended or first available)
  */
@@ -39,7 +39,7 @@ async function generateWithOllama(
         stream: false,
         options: {
           temperature: 0.3,
-          num_predict: 50, // Short responses for titles
+          num_predict: 50,
         },
       }),
     })
@@ -98,34 +98,6 @@ export const ollamaRouter = router({
       recommendedModel: ollamaStatus.recommendedModel,
     }
   }),
-
-  /**
-   * Generate a chat name using local Ollama model
-   * Used in offline mode for sub-chat title generation
-   */
-  generateChatName: publicProcedure
-    .input(z.object({ userMessage: z.string(), model: z.string().optional() }))
-    .mutation(async ({ input }) => {
-      const prompt = `Generate a very short (2-5 words) title for a coding chat that starts with this message. Only output the title, nothing else. No quotes, no explanations.
-
-User message: "${input.userMessage.slice(0, 500)}"
-
-Title:`
-
-      const result = await generateWithOllama(prompt, input.model)
-      if (result) {
-        // Clean up the result - remove quotes, trim, limit length
-        const cleaned = result
-          .replace(/^["']|["']$/g, "")
-          .replace(/^title:\s*/i, "")
-          .trim()
-          .slice(0, 50)
-        if (cleaned.length > 0) {
-          return { name: cleaned }
-        }
-      }
-      return { name: null }
-    }),
 
   /**
    * Generate a commit message using local Ollama model

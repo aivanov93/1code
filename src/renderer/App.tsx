@@ -25,6 +25,7 @@ import {
 import { appStore } from "./lib/jotai-store"
 import { VSCodeThemeProvider } from "./lib/themes/theme-provider"
 import { trpc } from "./lib/trpc"
+import { DESKTOP_LOCAL_ONLY } from "../shared/local-mode"
 
 /**
  * Custom Toaster that adapts to theme
@@ -100,6 +101,13 @@ function AppContent() {
   useEffect(() => {
     if (!billingMethod && anthropicOnboardingCompleted) {
       setBillingMethod("claude-subscription")
+    }
+  }, [billingMethod, anthropicOnboardingCompleted, setBillingMethod])
+
+  useEffect(() => {
+    if (!DESKTOP_LOCAL_ONLY) return
+    if (billingMethod === "claude-subscription" && !anthropicOnboardingCompleted) {
+      setBillingMethod(null)
     }
   }, [billingMethod, anthropicOnboardingCompleted, setBillingMethod])
 
@@ -197,6 +205,7 @@ export function App() {
 
     // Identify user if already authenticated
     const identifyUser = async () => {
+      if (DESKTOP_LOCAL_ONLY) return
       try {
         const user = await window.desktopApi?.getUser()
         if (user?.id) {

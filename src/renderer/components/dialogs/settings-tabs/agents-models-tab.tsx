@@ -30,6 +30,7 @@ import {
   type CodexModelOption,
   type CodexThinkingLevel,
 } from "../../../features/agents/lib/models"
+import { DESKTOP_LOCAL_ONLY } from "../../../../shared/local-mode"
 import { trpc } from "../../../lib/trpc"
 import { Badge } from "../../ui/badge"
 import { Button } from "../../ui/button"
@@ -936,18 +937,22 @@ export function AgentsModelsTab() {
               Anthropic Accounts
             </h4>
             <p className="text-xs text-muted-foreground">
-              Manage your Claude API accounts
+              {DESKTOP_LOCAL_ONLY
+                ? "Existing Claude subscription accounts remain local. New sign-ins are disabled."
+                : "Manage your Claude API accounts"}
             </p>
           </div>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleClaudeCodeSetup}
-            disabled={isClaudeCodeLoading}
-          >
-            <Plus className="h-3 w-3 mr-1" />
-            {isClaudeCodeConnected ? "Add" : "Connect"}
-          </Button>
+          {!DESKTOP_LOCAL_ONLY && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleClaudeCodeSetup}
+              disabled={isClaudeCodeLoading}
+            >
+              <Plus className="h-3 w-3 mr-1" />
+              {isClaudeCodeConnected ? "Add" : "Connect"}
+            </Button>
+          )}
         </div>
 
         <AnthropicAccountsSection />

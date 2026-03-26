@@ -22,6 +22,7 @@ import { Button } from "../ui/button"
 import { ClaudeCodeIcon, IconSpinner } from "../ui/icons"
 import { Input } from "../ui/input"
 import { Logo } from "../ui/logo"
+import { DESKTOP_LOCAL_ONLY } from "../../../shared/local-mode"
 
 type AuthFlowState =
   | { step: "idle" }
@@ -224,6 +225,7 @@ export function ClaudeLoginModal({
 
   useEffect(() => {
     if (
+      DESKTOP_LOCAL_ONLY ||
       !open ||
       !autoStartAuth ||
       flowState.step !== "idle" ||
@@ -346,6 +348,22 @@ export function ClaudeLoginModal({
 
           {/* Content */}
           <div className="space-y-6">
+            {DESKTOP_LOCAL_ONLY ? (
+              <div className="space-y-4">
+                <div className="p-4 bg-muted/50 border rounded-lg">
+                  <p className="text-sm text-muted-foreground">
+                    Claude subscription sign-in is disabled in local-only mode.
+                    Use an existing local account or configure an API key/custom model in Settings.
+                  </p>
+                </div>
+                {!hideCustomModelSettingsLink && (
+                  <Button variant="secondary" onClick={handleOpenModelsSettings} className="w-full">
+                    Open Models Settings
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <>
             {/* Connect Button - shows loader only if user clicked AND loading */}
             {!urlOpened && flowState.step !== "has_url" && flowState.step !== "error" && (
               <Button
@@ -425,6 +443,8 @@ export function ClaudeLoginModal({
                   Set a custom model in Settings
                 </button>
               </div>
+            )}
+              </>
             )}
           </div>
         </div>

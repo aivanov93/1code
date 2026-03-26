@@ -19,6 +19,7 @@ import { registerGitWatcherIPC } from "../lib/git/watcher"
 import { hasActiveClaudeSessions, abortAllClaudeSessions } from "../lib/trpc/routers/claude"
 import { hasActiveCodexStreams, abortAllCodexStreams } from "../lib/trpc/routers/codex"
 import { registerThemeScannerIPC } from "../lib/vscode-theme-scanner"
+import { DESKTOP_LOCAL_ONLY } from "../../shared/local-mode"
 import { windowManager } from "./window-manager"
 
 // Flag to bypass close confirmation when app.quit() has already been confirmed
@@ -81,7 +82,7 @@ function registerIpcHandlers(): void {
   ipcMain.handle("app:set-badge", (event, count: number | null) => {
     const win = getWindowFromEvent(event)
     if (process.platform === "darwin") {
-      app.dock.setBadge(count ? String(count) : "")
+      app.dock?.setBadge(count ? String(count) : "")
     } else if (process.platform === "win32" && win) {
       // Windows: Update title with count as fallback
       if (count !== null && count > 0) {
@@ -348,16 +349,19 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle("auth:get-user", (event) => {
     if (!validateSender(event)) return null
+    if (DESKTOP_LOCAL_ONLY) return null
     return getAuthManager().getUser()
   })
 
   ipcMain.handle("auth:is-authenticated", (event) => {
     if (!validateSender(event)) return false
+    if (DESKTOP_LOCAL_ONLY) return false
     return getAuthManager().isAuthenticated()
   })
 
   ipcMain.handle("auth:logout", async (event) => {
     if (!validateSender(event)) return
+    if (DESKTOP_LOCAL_ONLY) return
     getAuthManager().logout()
     // Clear cookie from persist:main partition
     const ses = session.fromPartition("persist:main")
@@ -375,12 +379,14 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle("auth:start-flow", (event) => {
     if (!validateSender(event)) return
+    if (DESKTOP_LOCAL_ONLY) return
     const win = getWindowFromEvent(event)
     getAuthManager().startAuthFlow(win)
   })
 
   ipcMain.handle("auth:submit-code", async (event, code: string) => {
     if (!validateSender(event)) return
+    if (DESKTOP_LOCAL_ONLY) return
     if (!code || typeof code !== "string") {
       getWindowFromEvent(event)?.webContents.send(
         "auth:error",
@@ -393,6 +399,7 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle("auth:update-user", async (event, updates: { name?: string }) => {
     if (!validateSender(event)) return null
+    if (DESKTOP_LOCAL_ONLY) return null
     try {
       return await getAuthManager().updateUser(updates)
     } catch (error) {
@@ -403,6 +410,7 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle("auth:get-token", async (event) => {
     if (!validateSender(event)) return null
+    if (DESKTOP_LOCAL_ONLY) return null
     return getAuthManager().getValidToken()
   })
 
@@ -418,6 +426,14 @@ function registerIpcHandlers(): void {
       if (!validateSender(event)) {
         console.log("[SignedFetch] Unauthorized sender")
         return { ok: false, status: 403, data: null, error: "Unauthorized sender" }
+      }
+      if (DESKTOP_LOCAL_ONLY) {
+        return {
+          ok: false,
+          status: 501,
+          data: null,
+          error: "Remote sync disabled in local mode",
+        }
       }
       console.log("[SignedFetch] Sender validated OK")
 
@@ -473,6 +489,9 @@ function registerIpcHandlers(): void {
       if (!validateSender(event)) {
         console.log("[StreamFetch] Unauthorized sender")
         return { ok: false, status: 403, error: "Unauthorized sender" }
+      }
+      if (DESKTOP_LOCAL_ONLY) {
+        return { ok: false, status: 501, error: "Remote sync disabled in local mode" }
       }
 
       const token = await getAuthManager().getValidToken()
@@ -793,7 +812,7 @@ export function createWindow(options?: { chatId?: string; subChatId?: string }):
     // windowManager handles cleanup via 'closed' event listener
   })
 
-  // Load the renderer - check auth first
+  // Load the renderer. Local-only desktop mode always opens the app shell.
   const devServerUrl = process.env.ELECTRON_RENDERER_URL
   const authManager = getAuthManager()
 
@@ -805,8 +824,12 @@ export function createWindow(options?: { chatId?: string; subChatId?: string }):
   console.log("[Main] getUser():", user ? user.email : "null")
   console.log("[Main] ================================")
 
-  if (isAuth) {
-    console.log("[Main] ✓ User authenticated, loading app")
+  if (DESKTOP_LOCAL_ONLY || isAuth) {
+    if (DESKTOP_LOCAL_ONLY) {
+      console.log("[Main] Local-only mode enabled, skipping app auth gate")
+    } else {
+      console.log("[Main] ✓ User authenticated, loading app")
+    }
     // Get stable window ID from manager (assigned during register)
     // "main" for first window, "window-2", "window-3", etc. for additional windows
     const windowId = windowManager.getStableId(window)

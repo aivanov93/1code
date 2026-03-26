@@ -69,6 +69,7 @@ import { SubChatsQuickSwitchDialog } from "../components/subchats-quick-switch-d
 import { isDesktopApp } from "../../../lib/utils/platform"
 import { remoteTrpc } from "../../../lib/remote-trpc"
 import { SettingsContent } from "../../settings/settings-content"
+import { DESKTOP_LOCAL_ONLY } from "../../../../shared/local-mode"
 // Desktop mock
 const useIsAdmin = () => false
 
@@ -83,6 +84,7 @@ export function AgentsContent() {
   const showNewChatForm = useAtomValue(showNewChatFormAtom)
   const betaKanbanEnabled = useAtomValue(betaKanbanEnabledAtom)
   const [betaAutomationsEnabled, setBetaAutomationsEnabled] = useAtom(betaAutomationsEnabledAtom)
+  const showRemoteWorkspaceViews = betaAutomationsEnabled && !DESKTOP_LOCAL_ONLY
   const [selectedTeamId] = useAtom(selectedTeamIdAtom)
   const setBillingMethod = useSetAtom(billingMethodAtom)
   const setAnthropicOnboardingCompleted = useSetAtom(
@@ -181,7 +183,7 @@ export function AgentsContent() {
 
   // Fetch teams for header
   const { data: teams } = api.teams.getUserTeams.useQuery(undefined, {
-    enabled: !!selectedTeamId,
+    enabled: !DESKTOP_LOCAL_ONLY && !!selectedTeamId,
   })
   const selectedTeam = teams?.find((t: any) => t.id === selectedTeamId) as any
 
@@ -190,7 +192,7 @@ export function AgentsContent() {
   const { data: automationsData } = useQuery({
     queryKey: ["automations", "autoActivateCheck", selectedTeamId],
     queryFn: () => remoteTrpc.automations.listAutomations.query({ teamId: selectedTeamId! }),
-    enabled: !!selectedTeamId && !betaAutomationsEnabled,
+    enabled: !DESKTOP_LOCAL_ONLY && !!selectedTeamId && !betaAutomationsEnabled,
     staleTime: Infinity,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
@@ -206,7 +208,7 @@ export function AgentsContent() {
   // Fetch agent chats for keyboard navigation and mobile view
   const { data: agentChats } = api.agents.getAgentChats.useQuery(
     { teamId: selectedTeamId! },
-    { enabled: !!selectedTeamId },
+    { enabled: !DESKTOP_LOCAL_ONLY && !!selectedTeamId },
   )
 
   // Fetch all projects for git info (like sidebar does)
@@ -863,11 +865,11 @@ export function AgentsContent() {
         {/* Mobile: Settings/Automations/Inbox fullscreen views */}
         {desktopView === "settings" ? (
           <SettingsContent />
-        ) : betaAutomationsEnabled && desktopView === "automations" ? (
+        ) : showRemoteWorkspaceViews && desktopView === "automations" ? (
           <AutomationsView />
-        ) : betaAutomationsEnabled && desktopView === "automations-detail" ? (
+        ) : showRemoteWorkspaceViews && desktopView === "automations-detail" ? (
           <AutomationsDetailView />
-        ) : betaAutomationsEnabled && desktopView === "inbox" ? (
+        ) : showRemoteWorkspaceViews && desktopView === "inbox" ? (
           <InboxView />
         ) : mobileViewMode === "chats" ? (
           // Chats List Mode (default) - uses AgentsSidebar in fullscreen
@@ -1002,11 +1004,11 @@ export function AgentsContent() {
         >
           {desktopView === "settings" ? (
             <SettingsContent />
-          ) : betaAutomationsEnabled && desktopView === "automations" ? (
+          ) : showRemoteWorkspaceViews && desktopView === "automations" ? (
             <AutomationsView />
-          ) : betaAutomationsEnabled && desktopView === "automations-detail" ? (
+          ) : showRemoteWorkspaceViews && desktopView === "automations-detail" ? (
             <AutomationsDetailView />
-          ) : betaAutomationsEnabled && desktopView === "inbox" ? (
+          ) : showRemoteWorkspaceViews && desktopView === "inbox" ? (
             <InboxView />
           ) : selectedChatId ? (
             <div className="h-full flex flex-col relative overflow-hidden">

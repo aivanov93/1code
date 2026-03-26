@@ -38,6 +38,7 @@ import {
   setIsQuitting,
 } from "./windows/main"
 import { windowManager } from "./windows/window-manager"
+import { DESKTOP_LOCAL_ONLY } from "../shared/local-mode"
 
 import { IS_DEV, AUTH_SERVER_PORT } from "./constants"
 
@@ -845,7 +846,7 @@ if (gotTheLock) {
           },
         },
       ])
-      app.dock.setMenu(dockMenu)
+      app.dock?.setMenu(dockMenu)
     }
 
     // Set update state and rebuild menu
@@ -879,8 +880,8 @@ if (gotTheLock) {
     // Initialize analytics after auth manager so we can identify user
     initAnalytics()
 
-    // If user already authenticated from previous session, identify them
-    if (authManager.isAuthenticated()) {
+    // Local-only mode skips desktop account identification/cookie sync.
+    if (!DESKTOP_LOCAL_ONLY && authManager.isAuthenticated()) {
       const user = authManager.getUser()
       if (user) {
         identify(user.id, { email: user.email })
@@ -892,26 +893,28 @@ if (gotTheLock) {
     trackAppOpened()
 
     // Set up callback to update cookie when token is refreshed
-    authManager.setOnTokenRefresh(async (authData) => {
-      console.log("[Auth] Token refreshed, updating cookie...")
-      const ses = session.fromPartition("persist:main")
-      try {
-        await ses.cookies.set({
-          url: getBaseUrl(),
-          name: "x-desktop-token",
-          value: authData.token,
-          expirationDate: Math.floor(
-            new Date(authData.expiresAt).getTime() / 1000,
-          ),
-          httpOnly: false,
-          secure: getBaseUrl().startsWith("https"),
-          sameSite: "lax" as const,
-        })
-        console.log("[Auth] Desktop token cookie updated after refresh")
-      } catch (err) {
-        console.error("[Auth] Failed to update cookie:", err)
-      }
-    })
+    if (!DESKTOP_LOCAL_ONLY) {
+      authManager.setOnTokenRefresh(async (authData) => {
+        console.log("[Auth] Token refreshed, updating cookie...")
+        const ses = session.fromPartition("persist:main")
+        try {
+          await ses.cookies.set({
+            url: getBaseUrl(),
+            name: "x-desktop-token",
+            value: authData.token,
+            expirationDate: Math.floor(
+              new Date(authData.expiresAt).getTime() / 1000,
+            ),
+            httpOnly: false,
+            secure: getBaseUrl().startsWith("https"),
+            sameSite: "lax" as const,
+          })
+          console.log("[Auth] Desktop token cookie updated after refresh")
+        } catch (err) {
+          console.error("[Auth] Failed to update cookie:", err)
+        }
+      })
+    }
 
     // Initialize database
     try {

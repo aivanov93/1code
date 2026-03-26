@@ -28,6 +28,7 @@ import {
   OriginalMCPIcon,
 } from "../../../components/ui/icons"
 import { ChevronRight } from "lucide-react"
+import { DESKTOP_LOCAL_ONLY } from "../../../../shared/local-mode"
 import {
   Tooltip,
   TooltipContent,
@@ -773,7 +774,7 @@ export const AgentsFileMention = memo(function AgentsFileMention({
     },
     {
       // Enable if we have projectPath (desktop) OR teamId with repository/sandboxId/branch (web)
-      enabled: isOpen && (!!projectPath || (!!teamId && (!!repository || !!sandboxId || !!branch))),
+      enabled: isOpen && (!!projectPath || (!DESKTOP_LOCAL_ONLY && !!teamId && (!!repository || !!sandboxId || !!branch))),
       staleTime: 5000,
       refetchOnWindowFocus: false,
       // Keep showing previous results while fetching new ones
@@ -1335,4 +1336,3 @@ export const AgentsFileMention = memo(function AgentsFileMention({
     document.body
   )
 })
-

@@ -5,7 +5,6 @@ import { Check } from "lucide-react"
 import { useMemo, useState } from "react"
 
 import {
-  ClaudeCodeIcon,
   CodexIcon,
   KeyFilledIcon,
   SettingsFilledIcon,
@@ -31,20 +30,12 @@ type BillingOption = {
 
 const billingOptions: BillingOption[] = [
   {
-    id: "claude-subscription",
-    method: "claude-subscription",
-    group: "claude-code",
-    title: "Claude Pro/Max",
-    subtitle: "Use your Claude subscription for unlimited access.",
-    recommended: true,
-    icon: <ClaudeCodeIcon className="w-5 h-5" />,
-  },
-  {
     id: "api-key",
     method: "api-key",
     group: "claude-code",
     title: "Anthropic API Key",
     subtitle: "Pay-as-you-go with your own API key.",
+    recommended: true,
     icon: <KeyFilledIcon className="w-5 h-5" />,
   },
   {
@@ -80,7 +71,7 @@ export function BillingMethodPage() {
   const [selectedGroup, setSelectedGroup] =
     useState<BillingOptionGroup>("claude-code")
   const [selectedOptionId, setSelectedOptionId] =
-    useState<string>("claude-subscription")
+    useState<string>("api-key")
 
   const visibleOptions = useMemo(
     () => billingOptions.filter((option) => option.group === selectedGroup),
@@ -128,7 +119,7 @@ export function BillingMethodPage() {
             type="button"
             onClick={() => {
               setSelectedGroup("claude-code")
-              setSelectedOptionId("claude-subscription")
+              setSelectedOptionId("api-key")
             }}
             className={cn(
               "h-8 flex-1 rounded-full text-sm font-medium transition-colors",
@@ -182,10 +173,8 @@ export function BillingMethodPage() {
                 <div
                   className={cn(
                     "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
-                    option.id === "claude-subscription"
-                      ? "bg-[#D97757] text-white"
-                      : option.id === "codex-subscription"
-                        ? "bg-white text-black"
+                    option.id === "codex-subscription"
+                      ? "bg-white text-black"
                       : selectedOptionId === option.id
                         ? "bg-foreground text-background"
                         : "bg-muted text-muted-foreground"

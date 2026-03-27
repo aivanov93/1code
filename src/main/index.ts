@@ -48,10 +48,17 @@ import { IS_DEV, AUTH_SERVER_PORT } from "./constants"
 const PROTOCOL = IS_DEV ? "twentyfirst-agents-dev" : "twentyfirst-agents"
 const startupPerf = makePerfLogger("startup")
 const shouldDisableMcpWarmup = process.env.ONECODE_DISABLE_MCP_WARMUP === "true"
+const forcedUserDataPath = process.env.ONECODE_USER_DATA_PATH
 
+// Allow tests and local automation to isolate userData completely.
+if (forcedUserDataPath) {
+  app.setPath("userData", forcedUserDataPath)
+  console.log("[App] Using overridden userData path:", forcedUserDataPath)
+  startupPerf("configured overridden userData path")
+}
 // Set dev mode userData path BEFORE requestSingleInstanceLock()
 // This ensures dev and prod have separate instance locks
-if (IS_DEV) {
+else if (IS_DEV) {
   const { join } = require("path")
   const devUserData = join(app.getPath("userData"), "..", "Agents Dev")
   app.setPath("userData", devUserData)

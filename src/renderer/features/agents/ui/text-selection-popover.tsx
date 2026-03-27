@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useCallback, useState, useRef } from "react"
+import { Plus } from "lucide-react"
 import { createPortal } from "react-dom"
 import { useTextSelection, type TextSelectionSource } from "../context/text-selection-context"
 
@@ -8,18 +9,21 @@ interface TextSelectionPopoverProps {
   onAddToContext: (text: string, source: TextSelectionSource) => void
   onQuickComment?: (text: string, source: TextSelectionSource, rect: DOMRect) => void
   onFocusInput?: () => void
+  suppressHoverButton?: boolean
 }
 
 export function TextSelectionPopover({
   onAddToContext,
   onQuickComment,
   onFocusInput,
+  suppressHoverButton = false,
 }: TextSelectionPopoverProps) {
-  const { selectedText, source, selectionRect, clearSelection } =
+  const { selectedText, source, selectionRect, hoveredDiffLine, clearSelection } =
     useTextSelection()
   const [isVisible, setIsVisible] = useState(false)
   const [isMouseDown, setIsMouseDown] = useState(false)
   const popoverRef = useRef<HTMLDivElement>(null)
+  const hoverButtonRef = useRef<HTMLButtonElement>(null)
 
   const handleAddToContext = useCallback(() => {
     if (selectedText && source) {
@@ -45,7 +49,10 @@ export function TextSelectionPopover({
   useEffect(() => {
     const handleMouseDown = (e: MouseEvent) => {
       // Ignore clicks on the popover itself
-      if (popoverRef.current?.contains(e.target as Node)) {
+      if (
+        popoverRef.current?.contains(e.target as Node) ||
+        hoverButtonRef.current?.contains(e.target as Node)
+      ) {
         return
       }
       setIsMouseDown(true)
@@ -54,7 +61,10 @@ export function TextSelectionPopover({
 
     const handleMouseUp = (e: MouseEvent) => {
       // Ignore clicks on the popover itself
-      if (popoverRef.current?.contains(e.target as Node)) {
+      if (
+        popoverRef.current?.contains(e.target as Node) ||
+        hoverButtonRef.current?.contains(e.target as Node)
+      ) {
         return
       }
       setIsMouseDown(false)
@@ -78,8 +88,41 @@ export function TextSelectionPopover({
     }
   }, [isMouseDown, selectedText, source, selectionRect])
 
+  const handleHoveredDiffComment = useCallback(() => {
+    if (!hoveredDiffLine || !onQuickComment) return
+    onQuickComment(hoveredDiffLine.text, hoveredDiffLine.source, hoveredDiffLine.rect)
+  }, [hoveredDiffLine, onQuickComment])
+
   // Don't render if not visible or if source is file-viewer (uses context menu instead)
   if (!isVisible || !selectedText || !source || !selectionRect || source.type === "file-viewer") {
+    if (
+      !suppressHoverButton &&
+      !selectedText &&
+      hoveredDiffLine &&
+      onQuickComment
+    ) {
+      const buttonSize = 28
+      const hoverStyle: React.CSSProperties = {
+        position: "fixed",
+        top: hoveredDiffLine.rect.top + Math.max(0, (hoveredDiffLine.rect.height - buttonSize) / 2),
+        left: hoveredDiffLine.rect.left + 10,
+        zIndex: 100000,
+      }
+
+      return createPortal(
+        <button
+          ref={hoverButtonRef}
+          type="button"
+          style={hoverStyle}
+          onClick={handleHoveredDiffComment}
+          className="size-7 rounded-lg bg-popover text-popover-foreground shadow-lg border border-border flex items-center justify-center hover:bg-muted transition-colors"
+          aria-label="Add diff comment"
+        >
+          <Plus className="size-4" />
+        </button>,
+        document.body,
+      )
+    }
     return null
   }
 
@@ -137,7 +180,7 @@ export function TextSelectionPopover({
               onClick={handleQuickComment}
               className="rounded px-1.5 py-0.5 text-xs text-popover-foreground hover:bg-white/15 transition-colors duration-100 active:scale-[0.97]"
             >
-              Reply
+              {source.type === "diff" ? "Comment" : "Reply"}
             </button>
           </>
         )}

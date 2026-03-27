@@ -64,6 +64,7 @@ import {
   TooltipTrigger,
 } from "../../../components/ui/tooltip"
 import { Kbd } from "../../../components/ui/kbd"
+import { AgentReviewCommentItem } from "./agent-review-comment-item"
 import {
   ContextMenu,
   ContextMenuContent,
@@ -79,6 +80,7 @@ import { isDesktopApp } from "../../../lib/utils/platform"
 import { api } from "../../../lib/mock-api"
 import { trpcClient } from "../../../lib/trpc"
 import { remoteApi } from "../../../lib/remote-api"
+import type { ReviewCommentDraft } from "../lib/review-comment-drafts"
 export type DiffViewMode = "unified" | "split"
 
 const LARGE_DIFF_LINE_THRESHOLD = 2000
@@ -491,6 +493,10 @@ interface FileDiffCardProps {
   showViewed?: boolean
   /** Chat ID for file preview sidebar */
   chatId?: string
+  /** Pending review comment drafts scoped to this file */
+  reviewCommentDrafts?: ReviewCommentDraft[]
+  /** Remove a pending review comment draft */
+  onRemoveReviewCommentDraft?: (draftId: string) => void
 }
 
 // Custom comparator to prevent unnecessary re-renders
@@ -518,6 +524,19 @@ const fileDiffCardAreEqual = (
   if (prev.isViewed !== next.isViewed) return false
   if (prev.showViewed !== next.showViewed) return false
   if (prev.chatId !== next.chatId) return false
+  const prevReviewComments = prev.reviewCommentDrafts || []
+  const nextReviewComments = next.reviewCommentDrafts || []
+  if (prevReviewComments.length !== nextReviewComments.length) return false
+  for (let i = 0; i < prevReviewComments.length; i++) {
+    if (
+      prevReviewComments[i]?.id !== nextReviewComments[i]?.id ||
+      prevReviewComments[i]?.state !== nextReviewComments[i]?.state ||
+      prevReviewComments[i]?.comment !== nextReviewComments[i]?.comment
+    ) {
+      return false
+    }
+  }
+  if (prev.onRemoveReviewCommentDraft !== next.onRemoveReviewCommentDraft) return false
   return true
 }
 
@@ -539,25 +558,44 @@ const FileDiffCard = memo(function FileDiffCard({
   onToggleViewed,
   showViewed = true,
   chatId,
+  reviewCommentDrafts = [],
+  onRemoveReviewCommentDraft,
 }: FileDiffCardProps) {
   const diffCardRef = useRef<HTMLDivElement>(null)
   const isLargeDiff = file.additions + file.deletions >= LARGE_DIFF_LINE_THRESHOLD
+  const shouldBuildExpandedDiff =
+    isFullExpanded && !isCollapsed && !isLargeDiff && !!fileContent
 
-  // Build FileDiffMetadata from file content (enables clickable "N unmodified lines" sections)
-  // Computed whenever fileContent is available, not just when fully expanded
+  // Build full-file metadata lazily. Doing this up front for every visible card
+  // makes the initial diff open pay for work most users never ask for.
   const [fileDiffMeta, setFileDiffMeta] = useState<ReturnType<typeof parseDiffFromFile> | null>(null)
   const [isExpandLoading, setIsExpandLoading] = useState(false)
+  const fileDiffMetaKeyRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (isLargeDiff) {
       setFileDiffMeta(null)
       setIsExpandLoading(false)
+      fileDiffMetaKeyRef.current = null
       return
     }
     if (!fileContent) {
       setFileDiffMeta(null)
+      setIsExpandLoading(false)
+      fileDiffMetaKeyRef.current = null
       return
     }
+    if (!shouldBuildExpandedDiff) {
+      setIsExpandLoading(false)
+      return
+    }
+
+    const metaKey = `${hashString(file.diffText)}:${hashString(fileContent)}`
+    if (fileDiffMetaKeyRef.current === metaKey && fileDiffMeta) {
+      setIsExpandLoading(false)
+      return
+    }
+
     setIsExpandLoading(true)
     const frame = requestAnimationFrame(() => {
       try {
@@ -580,14 +618,24 @@ const FileDiffCard = memo(function FileDiffCard({
           { name: file.newPath || displayPath, contents: fileContent, lang: lang as any },
         )
         setFileDiffMeta(result)
+        fileDiffMetaKeyRef.current = metaKey
       } catch {
         setFileDiffMeta(null)
+        fileDiffMetaKeyRef.current = null
       } finally {
         setIsExpandLoading(false)
       }
     })
     return () => cancelAnimationFrame(frame)
-  }, [fileContent, file.diffText, file.oldPath, file.newPath, isLargeDiff])
+  }, [
+    fileContent,
+    file.diffText,
+    file.oldPath,
+    file.newPath,
+    isLargeDiff,
+    shouldBuildExpandedDiff,
+    fileDiffMeta,
+  ])
 
   // tRPC mutations for file operations
   const openInFinderMutation = trpcClient.external.openInFinder.mutate
@@ -908,6 +956,23 @@ const FileDiffCard = memo(function FileDiffCard({
       {/* Content area */}
       {!isCollapsed && (
         <div>
+          {reviewCommentDrafts.length > 0 && (
+            <div className="space-y-2 border-b border-border px-3 py-3 bg-muted/20">
+              {reviewCommentDrafts.map((draft) => (
+                <AgentReviewCommentItem
+                  key={draft.id}
+                  draft={draft}
+                  variant="inline"
+                  onRemove={
+                    onRemoveReviewCommentDraft && draft.state === "pending"
+                      ? () => onRemoveReviewCommentDraft(draft.id)
+                      : undefined
+                  }
+                />
+              ))}
+            </div>
+          )}
+
           {file.isBinary ? (
             <div className="px-3 py-2 text-xs text-muted-foreground">
               Binary file diff can't be rendered.
@@ -950,7 +1015,7 @@ const FileDiffCard = memo(function FileDiffCard({
             </div>
           ) : (
             <DiffErrorBoundary fileName={file.newPath || file.oldPath} rawDiff={file.diffText}>
-              {fileDiffMeta ? (
+              {shouldBuildExpandedDiff && fileDiffMeta ? (
                 <FileDiff
                   fileDiff={fileDiffMeta}
                   options={{
@@ -1028,6 +1093,10 @@ interface AgentDiffViewProps {
   onViewedCountChange?: (count: number) => void
   /** Initial selected file path - used to filter on first render before atom updates */
   initialSelectedFile?: string | null
+  /** Workspace-scoped review comment drafts */
+  reviewCommentDrafts?: ReviewCommentDraft[]
+  /** Remove a pending workspace review comment draft */
+  onRemoveReviewCommentDraft?: (draftId: string) => void
 }
 
 /** Ref handle for controlling AgentDiffView from parent */
@@ -1062,6 +1131,8 @@ export const AgentDiffView = forwardRef<AgentDiffViewRef, AgentDiffViewProps>(
       onSelectNextFile,
       onViewedCountChange,
       initialSelectedFile,
+      reviewCommentDrafts = [],
+      onRemoveReviewCommentDraft,
     },
     ref,
   ) {
@@ -2113,6 +2184,12 @@ export const AgentDiffView = forwardRef<AgentDiffViewRef, AgentDiffViewProps>(
             >
               {virtualizer.getVirtualItems().map((virtualRow) => {
                 const file = deferredFileDiffs[virtualRow.index]!
+                const reviewCommentsForFile = reviewCommentDrafts.filter((draft) => {
+                  const filePath = file.newPath && file.newPath !== "/dev/null"
+                    ? file.newPath
+                    : file.oldPath
+                  return draft.filePath === filePath
+                })
                 return (
                   <div
                     key={file.key}
@@ -2145,6 +2222,8 @@ export const AgentDiffView = forwardRef<AgentDiffViewRef, AgentDiffViewProps>(
                         onToggleViewed={handleToggleViewed}
                         showViewed={!!worktreePath}
                         chatId={chatId}
+                        reviewCommentDrafts={reviewCommentsForFile}
+                        onRemoveReviewCommentDraft={onRemoveReviewCommentDraft}
                       />
                     </div>
                   </div>

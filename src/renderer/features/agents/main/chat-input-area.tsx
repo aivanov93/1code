@@ -74,6 +74,7 @@ import {
   normalizeCodexThinkingSelection,
   type CodexThinkingLevel,
 } from "../lib/models"
+import type { ReviewCommentDraft } from "../lib/review-comment-drafts"
 import type { DiffTextContext, SelectedTextContext } from "../lib/queue-utils"
 import {
   AgentsFileMention,
@@ -86,6 +87,7 @@ import { AgentDiffTextContextItem } from "../ui/agent-diff-text-context-item"
 import { AgentFileItem } from "../ui/agent-file-item"
 import { AgentImageItem } from "../ui/agent-image-item"
 import { AgentPastedTextItem } from "../ui/agent-pasted-text-item"
+import { AgentReviewCommentItem } from "../ui/agent-review-comment-item"
 import { AgentTextContextItem } from "../ui/agent-text-context-item"
 import { VoiceWaveIndicator } from "../ui/voice-wave-indicator"
 import { McpStatusDot } from "../../../components/dialogs/settings-tabs/agents-mcp-tab"
@@ -171,6 +173,13 @@ export interface ChatInputAreaProps {
   pastedTexts?: PastedTextFile[]
   onAddPastedText?: (text: string) => Promise<void>
   onRemovePastedText?: (id: string) => void
+  // Workspace-scoped review comment drafts from diff review
+  reviewCommentDrafts?: ReviewCommentDraft[]
+  onRemoveReviewCommentDraft?: (id: string) => void
+  availableReviewTargets?: Array<{ id: string; name: string }>
+  selectedReviewTargetId?: string | null
+  selectedReviewTargetName?: string | null
+  onSelectReviewTarget?: (subChatId: string) => void
   // Callback to cache file content for dropped text files (content added to prompt on send)
   onCacheFileContent?: (mentionId: string, content: string) => void
   // Pre-computed token data for context indicator (avoids passing messages array)
@@ -249,6 +258,8 @@ function arePropsEqual(prevProps: ChatInputAreaProps, nextProps: ChatInputAreaPr
     prevProps.onRemoveTextContext !== nextProps.onRemoveTextContext ||
     prevProps.onAddPastedText !== nextProps.onAddPastedText ||
     prevProps.onRemovePastedText !== nextProps.onRemovePastedText ||
+    prevProps.onRemoveReviewCommentDraft !== nextProps.onRemoveReviewCommentDraft ||
+    prevProps.onSelectReviewTarget !== nextProps.onSelectReviewTarget ||
     prevProps.onCacheFileContent !== nextProps.onCacheFileContent ||
     prevProps.onInputContentChange !== nextProps.onInputContentChange ||
     prevProps.onSubmitWithQuestionAnswer !== nextProps.onSubmitWithQuestionAnswer ||
@@ -315,6 +326,42 @@ function arePropsEqual(prevProps: ChatInputAreaProps, nextProps: ChatInputAreaPr
   const nextPasted = nextProps.pastedTexts || []
   if (prevPasted.length !== nextPasted.length) {
     return false
+  }
+
+  const prevReviewComments = prevProps.reviewCommentDrafts || []
+  const nextReviewComments = nextProps.reviewCommentDrafts || []
+  if (prevReviewComments.length !== nextReviewComments.length) {
+    return false
+  }
+  for (let i = 0; i < prevReviewComments.length; i++) {
+    if (
+      prevReviewComments[i]?.id !== nextReviewComments[i]?.id ||
+      prevReviewComments[i]?.state !== nextReviewComments[i]?.state ||
+      prevReviewComments[i]?.comment !== nextReviewComments[i]?.comment
+    ) {
+      return false
+    }
+  }
+
+  if (
+    prevProps.selectedReviewTargetId !== nextProps.selectedReviewTargetId ||
+    prevProps.selectedReviewTargetName !== nextProps.selectedReviewTargetName
+  ) {
+    return false
+  }
+
+  const prevTargets = prevProps.availableReviewTargets || []
+  const nextTargets = nextProps.availableReviewTargets || []
+  if (prevTargets.length !== nextTargets.length) {
+    return false
+  }
+  for (let i = 0; i < prevTargets.length; i++) {
+    if (
+      prevTargets[i]?.id !== nextTargets[i]?.id ||
+      prevTargets[i]?.name !== nextTargets[i]?.name
+    ) {
+      return false
+    }
   }
   for (let i = 0; i < prevPasted.length; i++) {
     if (prevPasted[i]?.id !== nextPasted[i]?.id) {
@@ -387,6 +434,12 @@ export const ChatInputArea = memo(function ChatInputArea({
   pastedTexts = [],
   onAddPastedText,
   onRemovePastedText,
+  reviewCommentDrafts = [],
+  onRemoveReviewCommentDraft,
+  availableReviewTargets = [],
+  selectedReviewTargetId,
+  selectedReviewTargetName,
+  onSelectReviewTarget,
   onCacheFileContent,
   messageTokenData,
   subChatId,
@@ -411,6 +464,9 @@ export const ChatInputArea = memo(function ChatInputArea({
   const [hasContent, setHasContent] = useState(false)
   const [isFocused, setIsFocused] = useState(false)
   const [isDragOver, setIsDragOver] = useState(false)
+  const pendingReviewCommentDrafts = reviewCommentDrafts.filter((draft) => draft.state === "pending")
+  const hasReviewCommentDrafts = reviewCommentDrafts.length > 0
+  const hasPendingReviewCommentDrafts = pendingReviewCommentDrafts.length > 0
 
   // Mention dropdown state
   const [showMentionDropdown, setShowMentionDropdown] = useState(false)
@@ -965,7 +1021,12 @@ export const ChatInputArea = memo(function ChatInputArea({
   const handleEditorSubmit = useCallback(async () => {
     const inputValue = editorRef.current?.getValue() || ""
     const hasText = inputValue.trim().length > 0
-    const hasAttachments = images.length > 0 || files.length > 0 || textContexts.length > 0 || (diffTextContexts?.length ?? 0) > 0
+    const hasAttachments =
+      images.length > 0 ||
+      files.length > 0 ||
+      textContexts.length > 0 ||
+      (diffTextContexts?.length ?? 0) > 0 ||
+      hasPendingReviewCommentDrafts
 
     if (!hasText && !hasAttachments && queueLength > 0 && onSendFromQueue && firstQueueItemId) {
       // Input empty, queue has items - stop stream and send from queue
@@ -974,7 +1035,7 @@ export const ChatInputArea = memo(function ChatInputArea({
     } else {
       onSend()
     }
-  }, [editorRef, images, files, textContexts, diffTextContexts, queueLength, onSendFromQueue, firstQueueItemId, onStop, onSend])
+  }, [editorRef, images, files, textContexts, diffTextContexts, hasPendingReviewCommentDrafts, queueLength, onSendFromQueue, firstQueueItemId, onStop, onSend])
 
   // Mention select handler
   const handleMentionSelect = useCallback((mention: FileMentionOption) => {
@@ -1247,72 +1308,122 @@ export const ChatInputArea = memo(function ChatInputArea({
               maxHeight={200}
               onSubmit={onSend}
               contextItems={
-                images.length > 0 || files.length > 0 || textContexts.length > 0 || (diffTextContexts?.length ?? 0) > 0 || pastedTexts.length > 0 ? (
-                  <div className="flex flex-wrap items-center gap-[6px]">
-                    {(() => {
-                      // Build allImages array for gallery navigation
-                      const allImages = images
-                        .filter((img): img is typeof img & { url: string } => !!img.url && !img.isLoading)
-                        .map((img) => ({
-                          id: img.id,
-                          filename: img.filename,
-                          url: img.url,
-                        }))
+                images.length > 0 ||
+                files.length > 0 ||
+                textContexts.length > 0 ||
+                (diffTextContexts?.length ?? 0) > 0 ||
+                pastedTexts.length > 0 ||
+                hasReviewCommentDrafts ? (
+                  <div className="flex flex-col gap-2">
+                    {hasReviewCommentDrafts && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-muted-foreground">Sending to:</span>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              type="button"
+                              className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                            >
+                              <AgentIcon className="size-3.5 text-muted-foreground" />
+                              <span>{selectedReviewTargetName || "Select chat"}</span>
+                              <ChevronDown className="size-3.5 text-muted-foreground" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="w-56">
+                            {availableReviewTargets.map((target) => (
+                              <DropdownMenuItem
+                                key={target.id}
+                                onClick={() => onSelectReviewTarget?.(target.id)}
+                                className="flex items-center justify-between gap-2"
+                              >
+                                <span className="truncate">{target.name}</span>
+                                {target.id === selectedReviewTargetId && (
+                                  <CheckIcon className="size-3.5 text-primary" />
+                                )}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    )}
 
-                      return images.map((img, idx) => (
-                        <AgentImageItem
-                          key={img.id}
-                          id={img.id}
-                          filename={img.filename}
-                          url={img.url || ""}
-                          isLoading={img.isLoading}
-                          onRemove={() => onRemoveImage(img.id)}
-                          allImages={allImages}
-                          imageIndex={idx}
+                    <div className="flex flex-wrap items-center gap-[6px]">
+                      {(() => {
+                        // Build allImages array for gallery navigation
+                        const allImages = images
+                          .filter((img): img is typeof img & { url: string } => !!img.url && !img.isLoading)
+                          .map((img) => ({
+                            id: img.id,
+                            filename: img.filename,
+                            url: img.url,
+                          }))
+
+                        return images.map((img, idx) => (
+                          <AgentImageItem
+                            key={img.id}
+                            id={img.id}
+                            filename={img.filename}
+                            url={img.url || ""}
+                            isLoading={img.isLoading}
+                            onRemove={() => onRemoveImage(img.id)}
+                            allImages={allImages}
+                            imageIndex={idx}
+                          />
+                        ))
+                      })()}
+                      {files.map((f) => (
+                        <AgentFileItem
+                          key={f.id}
+                          id={f.id}
+                          filename={f.filename}
+                          url={f.url || ""}
+                          size={f.size}
+                          isLoading={f.isLoading}
+                          onRemove={() => onRemoveFile(f.id)}
                         />
-                      ))
-                    })()}
-                    {files.map((f) => (
-                      <AgentFileItem
-                        key={f.id}
-                        id={f.id}
-                        filename={f.filename}
-                        url={f.url || ""}
-                        size={f.size}
-                        isLoading={f.isLoading}
-                        onRemove={() => onRemoveFile(f.id)}
-                      />
-                    ))}
-                    {textContexts.map((tc) => (
-                      <AgentTextContextItem
-                        key={tc.id}
-                        text={tc.text}
-                        preview={tc.preview}
-                        onRemove={() => onRemoveTextContext(tc.id)}
-                      />
-                    ))}
-                    {diffTextContexts?.map((dtc) => (
-                      <AgentDiffTextContextItem
-                        key={dtc.id}
-                        text={dtc.text}
-                        preview={dtc.preview}
-                        filePath={dtc.filePath}
-                        lineNumber={dtc.lineNumber}
-                        lineType={dtc.lineType}
-                        onRemove={onRemoveDiffTextContext ? () => onRemoveDiffTextContext(dtc.id) : undefined}
-                      />
-                    ))}
-                    {pastedTexts.map((pt) => (
-                      <AgentPastedTextItem
-                        key={pt.id}
-                        filePath={pt.filePath}
-                        filename={pt.filename}
-                        size={pt.size}
-                        preview={pt.preview}
-                        kind={pt.kind}
-                        onRemove={onRemovePastedText ? () => onRemovePastedText(pt.id) : undefined}
-                      />
-                    ))}
+                      ))}
+                      {textContexts.map((tc) => (
+                        <AgentTextContextItem
+                          key={tc.id}
+                          text={tc.text}
+                          preview={tc.preview}
+                          onRemove={() => onRemoveTextContext(tc.id)}
+                        />
+                      ))}
+                      {diffTextContexts?.map((dtc) => (
+                        <AgentDiffTextContextItem
+                          key={dtc.id}
+                          text={dtc.text}
+                          preview={dtc.preview}
+                          filePath={dtc.filePath}
+                          lineNumber={dtc.lineNumber}
+                          lineType={dtc.lineType}
+                          onRemove={onRemoveDiffTextContext ? () => onRemoveDiffTextContext(dtc.id) : undefined}
+                        />
+                      ))}
+                      {pastedTexts.map((pt) => (
+                        <AgentPastedTextItem
+                          key={pt.id}
+                          filePath={pt.filePath}
+                          filename={pt.filename}
+                          size={pt.size}
+                          preview={pt.preview}
+                          kind={pt.kind}
+                          onRemove={onRemovePastedText ? () => onRemovePastedText(pt.id) : undefined}
+                        />
+                      ))}
+                      {reviewCommentDrafts.map((draft) => (
+                        <AgentReviewCommentItem
+                          key={draft.id}
+                          draft={draft}
+                          onRemove={
+                            onRemoveReviewCommentDraft && draft.state === "pending"
+                              ? () => onRemoveReviewCommentDraft(draft.id)
+                              : undefined
+                          }
+                        />
+                      ))}
+                    </div>
                   </div>
                 ) : null
               }
@@ -1642,13 +1753,31 @@ export const ChatInputArea = memo(function ChatInputArea({
                           files.length === 0 &&
                           textContexts.length === 0 &&
                           (diffTextContexts?.length ?? 0) === 0 &&
+                          !hasPendingReviewCommentDrafts &&
                           queueLength === 0) ||
                         isUploading
                       }
-                      hasContent={hasContent || images.length > 0 || files.length > 0 || textContexts.length > 0 || (diffTextContexts?.length ?? 0) > 0}
+                      hasContent={
+                        hasContent ||
+                        images.length > 0 ||
+                        files.length > 0 ||
+                        textContexts.length > 0 ||
+                        (diffTextContexts?.length ?? 0) > 0 ||
+                        hasPendingReviewCommentDrafts
+                      }
                       onClick={() => {
                         // If input is empty and queue has items, send first queue item
-                        if (!hasContent && images.length === 0 && files.length === 0 && queueLength > 0 && onSendFromQueue && firstQueueItemId) {
+                        if (
+                          !hasContent &&
+                          images.length === 0 &&
+                          files.length === 0 &&
+                          textContexts.length === 0 &&
+                          (diffTextContexts?.length ?? 0) === 0 &&
+                          !hasPendingReviewCommentDrafts &&
+                          queueLength > 0 &&
+                          onSendFromQueue &&
+                          firstQueueItemId
+                        ) {
                           onSendFromQueue(firstQueueItemId)
                         } else {
                           onSend()

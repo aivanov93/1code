@@ -16,3 +16,11 @@ Use `@/openspec/AGENTS.md` to learn:
 Keep this managed block so 'openspec update' can refresh the instructions.
 
 <!-- OPENSPEC:END -->
+
+## Testing
+
+- Prefer Electron Playwright for app-shell flows instead of browser-only Playwright when the behavior depends on the real desktop app.
+- Install browser deps with `bun run test:electron:install`.
+- Run the smoke / regression suite with `bun run test:electron`.
+- Use `bun run test:electron:headed` while developing selectors or interaction behavior.
+- Electron tests should launch against an isolated `ONECODE_USER_DATA_PATH` so they never mutate the normal `Agents Dev` profile.

@@ -73,6 +73,7 @@ export type AgentQueueItem = {
   textContexts?: QueuedTextContext[]
   diffTextContexts?: QueuedDiffTextContext[]
   pastedTexts?: QueuedPastedText[]
+  reviewCommentDraftIds?: string[]
   timestamp: Date
   status: "pending" | "processing"
 }
@@ -88,7 +89,8 @@ export function createQueueItem(
   files?: QueuedFile[],
   textContexts?: QueuedTextContext[],
   diffTextContexts?: QueuedDiffTextContext[],
-  pastedTexts?: QueuedPastedText[]
+  pastedTexts?: QueuedPastedText[],
+  reviewCommentDraftIds?: string[]
 ): AgentQueueItem {
   return {
     id,
@@ -98,6 +100,7 @@ export function createQueueItem(
     textContexts: textContexts && textContexts.length > 0 ? textContexts : undefined,
     diffTextContexts: diffTextContexts && diffTextContexts.length > 0 ? diffTextContexts : undefined,
     pastedTexts: pastedTexts && pastedTexts.length > 0 ? pastedTexts : undefined,
+    reviewCommentDraftIds: reviewCommentDraftIds && reviewCommentDraftIds.length > 0 ? reviewCommentDraftIds : undefined,
     timestamp: new Date(),
     status: "pending",
   }

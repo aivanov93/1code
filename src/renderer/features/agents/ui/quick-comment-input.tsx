@@ -106,6 +106,9 @@ export function QuickCommentInput({
   const sourceLabel = source.type === "diff" || source.type === "tool-edit"
     ? `${source.filePath.split("/").pop()}${source.type === "diff" && source.lineNumber ? `:${source.lineNumber}` : ""}`
     : "from chat"
+  const isDraftCommentFlow = source.type === "diff"
+  const buttonLabel = isDraftCommentFlow ? "Comment" : "Send"
+  const placeholder = isDraftCommentFlow ? "Add your comment..." : "Add your reply..."
 
   // Animation: scale from direction of selection
   const animationClass = showBelow
@@ -139,7 +142,7 @@ export function QuickCommentInput({
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Add your reply..."
+              placeholder={placeholder}
               className="flex-1 text-xs bg-transparent outline-none text-foreground placeholder:text-muted-foreground px-1"
             />
             <button
@@ -152,7 +155,7 @@ export function QuickCommentInput({
                   : "bg-muted text-muted-foreground cursor-not-allowed"
               )}
             >
-              Send
+              {buttonLabel}
             </button>
           </div>
         </div>

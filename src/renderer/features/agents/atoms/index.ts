@@ -2,6 +2,7 @@ import { atom } from "jotai"
 import { atomFamily, atomWithStorage } from "jotai/utils"
 import { atomWithWindowStorage } from "../../../lib/window-storage"
 import type { FileMentionOption } from "../mentions/agents-mentions-editor"
+import type { ReviewCommentDraft } from "../lib/review-comment-drafts"
 import {
   SEEDED_CLAUDE_MODELS,
   SEEDED_CODEX_MODELS,
@@ -713,6 +714,27 @@ export const pendingReviewMessageAtom = atom<{ message: string; subChatId: strin
 // Pending merge conflict resolution message to send to chat
 // Set when user clicks "Fix Conflicts" button, consumed by ChatViewInner
 export const pendingConflictResolutionMessageAtom = atom<{ message: string; subChatId: string } | null>(null)
+
+// Workspace-scoped review comment drafts (runtime only, not persisted)
+const reviewCommentDraftsStorageAtom = atom<Record<string, ReviewCommentDraft[]>>({})
+export const reviewCommentDraftsAtomFamily = atomFamily((chatId: string) =>
+  atom(
+    (get) => get(reviewCommentDraftsStorageAtom)[chatId] ?? [],
+    (
+      get,
+      set,
+      update: ReviewCommentDraft[] | ((prev: ReviewCommentDraft[]) => ReviewCommentDraft[])
+    ) => {
+      const current = get(reviewCommentDraftsStorageAtom)
+      const prevDrafts = current[chatId] ?? []
+      const nextDrafts = typeof update === "function" ? update(prevDrafts) : update
+      set(reviewCommentDraftsStorageAtom, {
+        ...current,
+        [chatId]: nextDrafts,
+      })
+    },
+  ),
+)
 
 // Pending auth retry - stores failed message when auth-error occurs
 // After successful OAuth flow, this triggers automatic retry of the message

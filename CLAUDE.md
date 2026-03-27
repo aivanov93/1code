@@ -33,6 +33,12 @@ bun run dev              # Start Electron with hot reload
 
 # Build
 bun run build            # Compile app
+
+# Electron Playwright
+bun run test:electron          # Build + run Electron Playwright suite
+bun run test:electron:headed   # Same, but headed for local debugging
+bun run test:electron:install  # Install Playwright Chromium dependency
+
 bun run package          # Package for current platform (dir)
 bun run package:mac      # Build macOS (DMG + ZIP)
 bun run package:win      # Build Windows (NSIS + portable)
@@ -181,6 +187,13 @@ bun run dev
 - Dev mode uses `twentyfirst-agents-dev://` protocol
 - Dev mode uses separate userData path (`~/Library/Application Support/Agents Dev/`)
 - This prevents conflicts between dev and production installs
+
+## Testing Guidance
+
+- For desktop-app interaction testing, use Electron Playwright instead of browser-only Playwright.
+- The canonical smoke harness lives in `tests/electron/`.
+- Tests should set `ONECODE_USER_DATA_PATH` to a temp directory so they do not touch the real dev profile.
+- If a flow depends on local repositories or onboarding state, seed the isolated profile in the test rather than driving native folder pickers when possible.
 
 ## Releasing a New Version
 

@@ -24,6 +24,7 @@ import { computeContentHash, gitCache } from "../../git/cache"
 import { splitUnifiedDiffByFile } from "../../git/diff-parser"
 import { execWithShellEnv } from "../../git/shell-env"
 import { applyRollbackStash } from "../../git/stash"
+import { makePerfLogger } from "../../perf"
 import { checkInternetConnection, checkOllamaStatus } from "../../ollama"
 import { terminalManager } from "../../terminal/manager"
 import { publicProcedure, router } from "../index"
@@ -1007,12 +1008,14 @@ export const chatsRouter = router({
   getParsedDiff: publicProcedure
     .input(z.object({ chatId: z.string() }))
     .query(async ({ input }) => {
+      const diffPerf = makePerfLogger(`getParsedDiff:${input.chatId.slice(0, 8)}`)
       const db = getDatabase()
       const chat = db
         .select()
         .from(chats)
         .where(eq(chats.id, input.chatId))
         .get()
+      diffPerf("loaded chat row")
 
       if (!chat?.worktreePath) {
         return {
@@ -1030,6 +1033,7 @@ export const chatsRouter = router({
         chat.baseBranch ?? undefined,
         { onlyUncommitted: true },
       )
+      diffPerf("loaded raw diff")
 
       if (!result.success) {
         return {
@@ -1051,11 +1055,13 @@ export const chatsRouter = router({
       }
       const cached = gitCache.getParsedDiff<ParsedDiffResponse>(chat.worktreePath, diffHash)
       if (cached) {
+        diffPerf("returned cached parsed diff")
         return cached
       }
 
       // 3. Parse diff into files
       const files = splitUnifiedDiffByFile(result.diff || "")
+      diffPerf(`parsed ${files.length} diff files`)
 
       // 4. Calculate totals
       const totalAdditions = files.reduce((sum, f) => sum + f.additions, 0)
@@ -1104,6 +1110,7 @@ export const chatsRouter = router({
           }
         }),
       )
+      diffPerf(`prefetched ${Object.keys(fileContents).length} file contents`)
 
       const response: ParsedDiffResponse = {
         files,
@@ -1114,6 +1121,7 @@ export const chatsRouter = router({
 
       // 6. Store in cache
       gitCache.setParsedDiff(chat.worktreePath, diffHash, response)
+      diffPerf("stored parsed diff in cache")
       return response
     }),
 

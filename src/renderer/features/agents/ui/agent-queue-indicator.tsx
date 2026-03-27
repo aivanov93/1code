@@ -49,6 +49,7 @@ const QueueItemRow = memo(function QueueItemRow({
   const quoteCount = item.textContexts?.length || 0
   const diffCount = item.diffTextContexts?.length || 0
   const pastedCount = item.pastedTexts?.length || 0
+  const reviewCommentCount = item.reviewCommentDraftIds?.length || 0
 
   if (imageCount > 0) {
     attachmentParts.push(imageCount === 1 ? "image" : `${imageCount} images`)
@@ -64,6 +65,9 @@ const QueueItemRow = memo(function QueueItemRow({
   }
   if (diffCount > 0) {
     attachmentParts.push(diffCount === 1 ? "code selection" : `${diffCount} code selections`)
+  }
+  if (reviewCommentCount > 0) {
+    attachmentParts.push(reviewCommentCount === 1 ? "review comment" : `${reviewCommentCount} review comments`)
   }
 
   return (

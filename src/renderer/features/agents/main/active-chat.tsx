@@ -140,6 +140,7 @@ import {
   setLoading,
   subChatFilesAtom,
   agentsSidebarOpenAtom,
+  reviewCommentDraftsAtomFamily,
   subChatCodexModelIdAtomFamily,
   subChatCodexThinkingAtomFamily,
   subChatModelIdAtomFamily,
@@ -151,6 +152,12 @@ import {
   type SelectedCommit
 } from "../atoms"
 import { getDefaultClaudeModelSlug } from "../lib/models"
+import {
+  createReviewCommentDraftId,
+  createReviewCommentPreview,
+  serializeReviewCommentDrafts,
+  type ReviewCommentDraft,
+} from "../lib/review-comment-drafts"
 import { BUILTIN_SLASH_COMMANDS } from "../commands"
 import { AgentSendButton } from "../components/agent-send-button"
 import { OpenLocallyDialog } from "../components/open-locally-dialog"
@@ -1909,6 +1916,16 @@ const ChatViewInner = memo(function ChatViewInner({
   workspaceName,
   workspaceBranch,
   workspaceRepoName,
+  reviewCommentDrafts,
+  onCreateReviewCommentDraft,
+  onRemoveReviewCommentDraft,
+  onMarkReviewCommentDraftsQueued,
+  onResetReviewCommentDraftsToPending,
+  onClearReviewCommentDrafts,
+  selectedReviewTargetId,
+  selectedReviewTargetName,
+  availableReviewTargets,
+  onSelectReviewTarget,
 }: {
   chat: Chat<any>
   subChatId: string
@@ -1938,6 +1955,16 @@ const ChatViewInner = memo(function ChatViewInner({
   workspaceName?: string | null
   workspaceBranch?: string | null
   workspaceRepoName?: string | null
+  reviewCommentDrafts: ReviewCommentDraft[]
+  onCreateReviewCommentDraft: (draft: Omit<ReviewCommentDraft, "id" | "selectedTextPreview" | "state">) => void
+  onRemoveReviewCommentDraft: (draftId: string) => void
+  onMarkReviewCommentDraftsQueued: (draftIds: string[]) => void
+  onResetReviewCommentDraftsToPending: (draftIds: string[]) => void
+  onClearReviewCommentDrafts: (draftIds: string[]) => void
+  selectedReviewTargetId: string | null
+  selectedReviewTargetName: string | null
+  availableReviewTargets: Array<{ id: string; name: string }>
+  onSelectReviewTarget: (subChatId: string) => void
 }) {
   const hasTriggeredAutoGenerateRef = useRef(false)
   const isVisiblePane = isActive || isSplitPane
@@ -2310,6 +2337,8 @@ const ChatViewInner = memo(function ChatViewInner({
     pastedTextsRef,
     setPastedTextsFromDraft,
   } = usePastedTextFiles(subChatId)
+  const reviewCommentDraftsRef = useRef(reviewCommentDrafts)
+  reviewCommentDraftsRef.current = reviewCommentDrafts
 
   // Consume pending chat history file when this sub-chat is the target
   useEffect(() => {
@@ -2534,45 +2563,59 @@ const ChatViewInner = memo(function ChatViewInner({
 
   // Handler for quick comment submission
   const handleQuickCommentSubmit = useCallback((comment: string, selectedText: string, source: TextSelectionSource) => {
-    // Format message with mention token + comment
-    const preview = selectedText.slice(0, 50).replace(/[:\[\]]/g, "")
-    const encodedText = utf8ToBase64(selectedText)
-
-    let mentionToken: string
     if (source.type === "diff") {
-      const lineNum = source.lineNumber || 0
-      mentionToken = `@[${MENTION_PREFIXES.DIFF}${source.filePath}:${lineNum}:${preview}:${encodedText}]`
-    } else if (source.type === "tool-edit") {
-      // Tool edit is treated as code/diff context
-      mentionToken = `@[${MENTION_PREFIXES.DIFF}${source.filePath}:0:${preview}:${encodedText}]`
-    } else {
-      mentionToken = `@[${MENTION_PREFIXES.QUOTE}${preview}:${encodedText}]`
-    }
-
-    const message = `${mentionToken} ${comment}`
-
-    // If streaming, add to queue
-    if (isStreamingRef.current) {
-      const item = createQueueItem(generateQueueId(), message)
-      addToQueue(subChatId, item)
-      toast.success("Reply queued", { description: "Will be sent when current response completes" })
-    } else {
-      // Send directly
-      sendMessageRef.current({
-        role: "user",
-        parts: [{ type: "text", text: message }],
+      onCreateReviewCommentDraft({
+        filePath: source.filePath,
+        lineNumber: source.lineNumber,
+        lineType: source.lineType,
+        selectedText,
+        comment,
       })
-      toast.success("Reply sent")
+      toast.success("Comment added")
+    } else {
+      // Preserve the existing tool-edit quick-send behavior.
+      const preview = selectedText.slice(0, 50).replace(/[:\[\]]/g, "")
+      const encodedText = utf8ToBase64(selectedText)
+      const mentionToken = source.type === "tool-edit"
+        ? `@[${MENTION_PREFIXES.DIFF}${source.filePath}:0:${preview}:${encodedText}]`
+        : `@[${MENTION_PREFIXES.QUOTE}${preview}:${encodedText}]`
+      const message = `${mentionToken} ${comment}`
+
+      if (isStreamingRef.current) {
+        const item = createQueueItem(generateQueueId(), message)
+        addToQueue(subChatId, item)
+        toast.success("Reply queued", { description: "Will be sent when current response completes" })
+      } else {
+        sendMessageRef.current({
+          role: "user",
+          parts: [{ type: "text", text: message }],
+        })
+        toast.success("Reply sent")
+      }
     }
 
-    // Clear state and selection
     setQuickCommentState(null)
     window.getSelection()?.removeAllRanges()
-  }, [addToQueue, subChatId])
+    requestAnimationFrame(() => {
+      editorRef.current?.focus()
+    })
+  }, [addToQueue, onCreateReviewCommentDraft, subChatId])
 
   // Handler for quick comment cancel
   const handleQuickCommentCancel = useCallback(() => {
     setQuickCommentState(null)
+  }, [])
+
+  const getPendingReviewCommentDrafts = useCallback(() => {
+    return reviewCommentDraftsRef.current.filter((draft) => draft.state === "pending")
+  }, [])
+
+  const buildOutgoingText = useCallback((baseText: string, drafts: ReviewCommentDraft[]) => {
+    const reviewCommentText = drafts.length > 0
+      ? serializeReviewCommentDrafts(drafts)
+      : ""
+    const trimmedBaseText = baseText.trim()
+    return [reviewCommentText, trimmedBaseText].filter(Boolean).join("\n\n")
   }, [])
 
   // Sync loading status to atom for UI indicators
@@ -3792,13 +3835,16 @@ const ChatViewInner = memo(function ChatViewInner({
     const currentTextContexts = textContextsRef.current
     const currentDiffTextContexts = diffTextContextsRef.current
     const currentPastedTexts = pastedTextsRef.current
+    const currentReviewCommentDrafts = getPendingReviewCommentDrafts()
+    const currentReviewCommentDraftIds = currentReviewCommentDrafts.map((draft) => draft.id)
     const hasImages =
       currentImages.filter((img) => !img.isLoading && img.url).length > 0
     const hasTextContexts = currentTextContexts.length > 0
     const hasDiffTextContexts = currentDiffTextContexts.length > 0
     const hasPastedTexts = currentPastedTexts.length > 0
+    const hasReviewCommentDrafts = currentReviewCommentDrafts.length > 0
 
-    if (!hasText && !hasImages && !hasTextContexts && !hasDiffTextContexts && !hasPastedTexts) return
+    if (!hasText && !hasImages && !hasTextContexts && !hasDiffTextContexts && !hasPastedTexts && !hasReviewCommentDrafts) return
 
     // If streaming, add to queue instead of sending directly
     if (isStreamingRef.current) {
@@ -3811,17 +3857,20 @@ const ChatViewInner = memo(function ChatViewInner({
       const queuedTextContexts = currentTextContexts.map(toQueuedTextContext)
       const queuedDiffTextContexts = currentDiffTextContexts.map(toQueuedDiffTextContext)
       const queuedPastedTexts = currentPastedTexts.map(toQueuedPastedText)
+      const serializedReviewComments = buildOutgoingText(inputValue.trim(), currentReviewCommentDrafts)
 
       const item = createQueueItem(
         generateQueueId(),
-        inputValue.trim(),
+        serializedReviewComments,
         queuedImages.length > 0 ? queuedImages : undefined,
         queuedFiles.length > 0 ? queuedFiles : undefined,
         queuedTextContexts.length > 0 ? queuedTextContexts : undefined,
         queuedDiffTextContexts.length > 0 ? queuedDiffTextContexts : undefined,
         queuedPastedTexts.length > 0 ? queuedPastedTexts : undefined,
+        currentReviewCommentDraftIds,
       )
       addToQueue(subChatId, item)
+      onMarkReviewCommentDraftsQueued(currentReviewCommentDraftIds)
 
       // Clear input and attachments
       editorRef.current?.clear()
@@ -3939,8 +3988,13 @@ const ChatViewInner = memo(function ChatViewInner({
       mentionPrefix = [...quoteMentions, ...diffMentions, ...pastedTextMentions].join(" ") + " "
     }
 
-    if (finalText || mentionPrefix) {
-      parts.push({ type: "text", text: mentionPrefix + (finalText || "") })
+    const composedText = buildOutgoingText(
+      mentionPrefix + (finalText || ""),
+      currentReviewCommentDrafts,
+    )
+
+    if (composedText) {
+      parts.push({ type: "text", text: composedText })
     }
 
     // Add cached file contents as hidden parts (sent to agent but not displayed in UI)
@@ -4013,6 +4067,7 @@ const ChatViewInner = memo(function ChatViewInner({
     scrollToBottom()
 
     await sendMessageRef.current({ role: "user", parts })
+    onClearReviewCommentDrafts(currentReviewCommentDraftIds)
   }, [
     sandboxSetupStatus,
     isArchived,
@@ -4024,6 +4079,10 @@ const ChatViewInner = memo(function ChatViewInner({
     clearPastedTexts,
     teamId,
     addToQueue,
+    buildOutgoingText,
+    getPendingReviewCommentDrafts,
+    onClearReviewCommentDrafts,
+    onMarkReviewCommentDraftsQueued,
     setExpiredQuestionsMap,
   ])
 
@@ -4114,16 +4173,21 @@ const ChatViewInner = memo(function ChatViewInner({
       scrollToBottom()
 
       await sendMessageRef.current({ role: "user", parts })
+      onClearReviewCommentDrafts(item.reviewCommentDraftIds || [])
     } catch (error) {
       console.error("[handleSendFromQueue] Error sending queued message:", error)
       // Requeue the item at the front so it isn't lost
       useMessageQueueStore.getState().prependItem(subChatId, item)
     }
-  }, [subChatId, popItemFromQueue, handleStop])
+  }, [subChatId, popItemFromQueue, handleStop, onClearReviewCommentDrafts])
 
   const handleRemoveFromQueue = useCallback((itemId: string) => {
+    const queuedItem = queue.find((item) => item.id === itemId)
+    if (queuedItem?.reviewCommentDraftIds?.length) {
+      onResetReviewCommentDraftsToPending(queuedItem.reviewCommentDraftIds)
+    }
     removeFromQueue(subChatId, itemId)
-  }, [subChatId, removeFromQueue])
+  }, [queue, subChatId, removeFromQueue, onResetReviewCommentDraftsToPending])
 
   // Force send - stop stream and send immediately, bypassing queue (Opt+Enter)
   const handleForceSend = useCallback(async () => {
@@ -4137,10 +4201,12 @@ const ChatViewInner = memo(function ChatViewInner({
     const hasText = inputValue.trim().length > 0
     const currentImages = imagesRef.current
     const currentFiles = filesRef.current
+    const currentReviewCommentDrafts = getPendingReviewCommentDrafts()
+    const currentReviewCommentDraftIds = currentReviewCommentDrafts.map((draft) => draft.id)
     const hasImages =
       currentImages.filter((img) => !img.isLoading && img.url).length > 0
 
-    if (!hasText && !hasImages) return
+    if (!hasText && !hasImages && currentReviewCommentDrafts.length === 0) return
 
     // Stop current stream if streaming and wait for status to become ready.
     // The server-side save block sets sessionId=null on abort, so the next
@@ -4224,8 +4290,9 @@ const ChatViewInner = memo(function ChatViewInner({
         })),
     ]
 
-    if (finalText) {
-      parts.push({ type: "text", text: finalText })
+    const composedText = buildOutgoingText(finalText, currentReviewCommentDrafts)
+    if (composedText) {
+      parts.push({ type: "text", text: composedText })
     }
 
     // Clear attachments
@@ -4240,6 +4307,7 @@ const ChatViewInner = memo(function ChatViewInner({
 
     try {
       await sendMessageRef.current({ role: "user", parts })
+      onClearReviewCommentDrafts(currentReviewCommentDraftIds)
     } catch (error) {
       console.error("[handleForceSend] Error sending message:", error)
       // Restore editor content so the user can retry
@@ -4252,7 +4320,10 @@ const ChatViewInner = memo(function ChatViewInner({
     parentChatId,
     subChatId,
     handleStop,
+    buildOutgoingText,
     clearAll,
+    getPendingReviewCommentDrafts,
+    onClearReviewCommentDrafts,
   ])
 
   // NOTE: Auto-processing of queue is now handled globally by QueueProcessor
@@ -4559,6 +4630,7 @@ const ChatViewInner = memo(function ChatViewInner({
             onAddToContext={addTextContext}
             onQuickComment={handleQuickComment}
             onFocusInput={handleFocusInput}
+            suppressHoverButton={!!quickCommentState}
           />
         )}
 
@@ -4739,6 +4811,12 @@ const ChatViewInner = memo(function ChatViewInner({
         pastedTexts={pastedTexts}
         onAddPastedText={addPastedText}
         onRemovePastedText={removePastedText}
+        reviewCommentDrafts={reviewCommentDrafts}
+        onRemoveReviewCommentDraft={onRemoveReviewCommentDraft}
+        availableReviewTargets={availableReviewTargets}
+        selectedReviewTargetId={selectedReviewTargetId}
+        selectedReviewTargetName={selectedReviewTargetName}
+        onSelectReviewTarget={onSelectReviewTarget}
         onCacheFileContent={cacheFileContent}
         messageTokenData={messageTokenData}
         subChatId={subChatId}
@@ -5248,6 +5326,76 @@ export function ChatView({
     subChatProviderOverrides,
     setSubChatProviderOverrides,
   ] = useState<Record<string, "claude-code" | "codex">>({})
+
+  const reviewCommentDraftsAtom = useMemo(
+    () => reviewCommentDraftsAtomFamily(chatId),
+    [chatId],
+  )
+  const [reviewCommentDrafts, setReviewCommentDrafts] = useAtom(
+    reviewCommentDraftsAtom,
+  )
+
+  const handleCreateReviewCommentDraft = useCallback((
+    draft: Omit<ReviewCommentDraft, "id" | "selectedTextPreview" | "state">
+  ) => {
+    setReviewCommentDrafts((prev) => [
+      ...prev,
+      {
+        ...draft,
+        id: createReviewCommentDraftId(),
+        selectedTextPreview: createReviewCommentPreview(draft.selectedText),
+        state: "pending",
+      },
+    ])
+  }, [setReviewCommentDrafts])
+
+  const handleRemoveReviewCommentDraft = useCallback((draftId: string) => {
+    setReviewCommentDrafts((prev) => prev.filter((draft) => draft.id !== draftId))
+  }, [setReviewCommentDrafts])
+
+  const handleMarkReviewCommentDraftsQueued = useCallback((draftIds: string[]) => {
+    if (draftIds.length === 0) return
+    const draftIdSet = new Set(draftIds)
+    setReviewCommentDrafts((prev) => prev.map((draft) => (
+      draftIdSet.has(draft.id) ? { ...draft, state: "queued" } : draft
+    )))
+  }, [setReviewCommentDrafts])
+
+  const handleResetReviewCommentDraftsToPending = useCallback((draftIds: string[]) => {
+    if (draftIds.length === 0) return
+    const draftIdSet = new Set(draftIds)
+    setReviewCommentDrafts((prev) => prev.map((draft) => (
+      draftIdSet.has(draft.id) ? { ...draft, state: "pending" } : draft
+    )))
+  }, [setReviewCommentDrafts])
+
+  const handleClearReviewCommentDrafts = useCallback((draftIds: string[]) => {
+    if (draftIds.length === 0) return
+    const draftIdSet = new Set(draftIds)
+    setReviewCommentDrafts((prev) => prev.filter((draft) => !draftIdSet.has(draft.id)))
+  }, [setReviewCommentDrafts])
+
+  const availableReviewTargets = useMemo(
+    () => allSubChats.map((subChat) => ({
+      id: subChat.id,
+      name: subChat.name || "New Chat",
+    })),
+    [allSubChats],
+  )
+
+  const selectedReviewTargetId = activeSubChatId || null
+  const selectedReviewTargetName = useMemo(() => {
+    if (!selectedReviewTargetId) return null
+    return availableReviewTargets.find((target) => target.id === selectedReviewTargetId)?.name || "New Chat"
+  }, [availableReviewTargets, selectedReviewTargetId])
+
+  const handleSelectReviewTarget = useCallback((targetSubChatId: string) => {
+    const store = useAgentSubChatStore.getState()
+    if (!store.openSubChatIds.includes(targetSubChatId)) {
+      store.addToOpenSubChats(targetSubChatId)
+    }
+    store.setActiveSubChat(targetSubChatId)
+  }, [])
 
   useEffect(() => {
     setSubChatProviderOverrides({})
@@ -7542,6 +7690,16 @@ Make sure to preserve all functionality from both branches when resolving confli
                             workspaceName={agentChat?.name ?? null}
                             workspaceBranch={agentChat?.branch ?? null}
                             workspaceRepoName={(agentChat as any)?.project?.gitRepo || (agentChat as any)?.project?.name || null}
+                            reviewCommentDrafts={reviewCommentDrafts}
+                            onCreateReviewCommentDraft={handleCreateReviewCommentDraft}
+                            onRemoveReviewCommentDraft={handleRemoveReviewCommentDraft}
+                            onMarkReviewCommentDraftsQueued={handleMarkReviewCommentDraftsQueued}
+                            onResetReviewCommentDraftsToPending={handleResetReviewCommentDraftsToPending}
+                            onClearReviewCommentDrafts={handleClearReviewCommentDrafts}
+                            selectedReviewTargetId={selectedReviewTargetId}
+                            selectedReviewTargetName={selectedReviewTargetName}
+                            availableReviewTargets={availableReviewTargets}
+                            onSelectReviewTarget={handleSelectReviewTarget}
                           />
                         </div>
                       )
@@ -7589,6 +7747,16 @@ Make sure to preserve all functionality from both branches when resolving confli
                                 workspaceName={agentChat?.name ?? null}
                                 workspaceBranch={agentChat?.branch ?? null}
                                 workspaceRepoName={(agentChat as any)?.project?.gitRepo || (agentChat as any)?.project?.name || null}
+                                reviewCommentDrafts={reviewCommentDrafts}
+                                onCreateReviewCommentDraft={handleCreateReviewCommentDraft}
+                                onRemoveReviewCommentDraft={handleRemoveReviewCommentDraft}
+                                onMarkReviewCommentDraftsQueued={handleMarkReviewCommentDraftsQueued}
+                                onResetReviewCommentDraftsToPending={handleResetReviewCommentDraftsToPending}
+                                onClearReviewCommentDrafts={handleClearReviewCommentDrafts}
+                                selectedReviewTargetId={selectedReviewTargetId}
+                                selectedReviewTargetName={selectedReviewTargetName}
+                                availableReviewTargets={availableReviewTargets}
+                                onSelectReviewTarget={handleSelectReviewTarget}
                               />
                             </div>
                           )
@@ -7648,6 +7816,16 @@ Make sure to preserve all functionality from both branches when resolving confli
                       workspaceName={agentChat?.name ?? null}
                       workspaceBranch={agentChat?.branch ?? null}
                       workspaceRepoName={(agentChat as any)?.project?.gitRepo || (agentChat as any)?.project?.name || null}
+                      reviewCommentDrafts={reviewCommentDrafts}
+                      onCreateReviewCommentDraft={handleCreateReviewCommentDraft}
+                      onRemoveReviewCommentDraft={handleRemoveReviewCommentDraft}
+                      onMarkReviewCommentDraftsQueued={handleMarkReviewCommentDraftsQueued}
+                      onResetReviewCommentDraftsToPending={handleResetReviewCommentDraftsToPending}
+                      onClearReviewCommentDrafts={handleClearReviewCommentDrafts}
+                      selectedReviewTargetId={selectedReviewTargetId}
+                      selectedReviewTargetName={selectedReviewTargetName}
+                      availableReviewTargets={availableReviewTargets}
+                      onSelectReviewTarget={handleSelectReviewTarget}
                     />
                   </div>
                 )

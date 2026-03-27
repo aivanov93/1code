@@ -84,7 +84,6 @@ import {
 import { api } from "../../lib/mock-api"
 import { trpcClient } from "../../lib/trpc"
 import { toast } from "sonner"
-import { AgentsRenameSubChatDialog } from "../agents/components/agents-rename-subchat-dialog"
 import { SearchCombobox } from "../../components/ui/search-combobox"
 import { SubChatContextMenu } from "../agents/ui/sub-chat-context-menu"
 import { formatTimeAgo } from "../agents/utils/format-time-ago"
@@ -102,6 +101,52 @@ interface SidebarSearchHistoryPopoverProps {
   pendingQuestionsMap: Map<string, { subChatId: string }>
   allSubChatsLength: number
   onSelect: (subChat: SubChatMeta) => void
+}
+
+// Inline rename input that replaces TypewriterText when editing
+function InlineRenameInput({ name, onSave, onCancel }: {
+  name: string
+  onSave: (newName: string) => void
+  onCancel: () => void
+}) {
+  const [value, setValue] = useState(name)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const mountTimeRef = useRef(Date.now())
+
+  useEffect(() => {
+    mountTimeRef.current = Date.now()
+    requestAnimationFrame(() => { inputRef.current?.focus(); inputRef.current?.select() })
+  }, [])
+
+  const save = useCallback(() => {
+    const trimmed = value.trim()
+    if (trimmed && trimmed !== name) onSave(trimmed)
+    else onCancel()
+  }, [value, name, onSave, onCancel])
+
+  return (
+    <input
+      ref={inputRef}
+      type="text"
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onKeyDown={(e) => {
+        e.stopPropagation() // prevent parent from intercepting space/enter
+        if (e.key === "Enter") { e.preventDefault(); save() }
+        else if (e.key === "Escape") { e.preventDefault(); onCancel() }
+      }}
+      onBlur={() => {
+        // Ignore immediate blur from context menu focus restoration
+        if (Date.now() - mountTimeRef.current < 200) {
+          requestAnimationFrame(() => { inputRef.current?.focus(); inputRef.current?.select() })
+          return
+        }
+        save()
+      }}
+      onClick={(e) => e.stopPropagation()}
+      className="truncate block text-sm leading-tight flex-1 bg-transparent outline-none border-none min-w-0"
+    />
+  )
 }
 
 const SidebarSearchHistoryPopover = memo(function SidebarSearchHistoryPopover({
@@ -310,11 +355,7 @@ export function AgentsSubChatsSidebar({
   const [focusedChatIndex, setFocusedChatIndex] = useState<number>(-1)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const [renameDialogOpen, setRenameDialogOpen] = useState(false)
-  const [renamingSubChat, setRenamingSubChat] = useState<SubChatMeta | null>(
-    null,
-  )
-  const [renameLoading, setRenameLoading] = useState(false)
+  const [editingSubChatId, setEditingSubChatId] = useState<string | null>(null)
   const [showTopGradient, setShowTopGradient] = useState(false)
   const [showBottomGradient, setShowBottomGradient] = useState(false)
   // Using ref instead of state to avoid re-renders on hover
@@ -660,7 +701,7 @@ export function AgentsSubChatsSidebar({
   }, [parentChatId, setUndoStack])
 
   const renameMutation = api.agents.renameSubChat.useMutation({
-    // Note: store is updated optimistically in handleRenameSave, no need for onSuccess
+    // Store is updated optimistically in handleSaveSubChatRename
     onError: (error) => {
       if (error.data?.code === "NOT_FOUND") {
         toast.error("Send a message first before renaming this chat")
@@ -671,19 +712,16 @@ export function AgentsSubChatsSidebar({
   })
 
   const handleRenameClick = useCallback((subChat: SubChatMeta) => {
-    setRenamingSubChat(subChat)
-    setRenameDialogOpen(true)
+    setEditingSubChatId(subChat.id)
   }, [])
 
-  const handleRenameSave = useCallback(
-    async (newName: string) => {
-      if (!renamingSubChat) return
+  const handleSaveSubChatRename = useCallback(
+    async (subChatId: string, newName: string) => {
+      const store = useAgentSubChatStore.getState()
+      const oldName = store.allSubChats.find((s: SubChatMeta) => s.id === subChatId)?.name || "New Chat"
 
-      const subChatId = renamingSubChat.id
-      const oldName = renamingSubChat.name
-
-      // Optimistically update store
-      useAgentSubChatStore.getState().updateSubChatName(subChatId, newName)
+      // Optimistic update
+      store.updateSubChatName(subChatId, newName)
 
       // Remove from justCreatedIds to prevent typewriter animation on manual rename
       setJustCreatedIds((prev) => {
@@ -695,24 +733,13 @@ export function AgentsSubChatsSidebar({
         return prev
       })
 
-      setRenameLoading(true)
-
       try {
-        await renameMutation.mutateAsync({
-          subChatId,
-          name: newName,
-        })
+        await renameMutation.mutateAsync({ subChatId, name: newName })
       } catch {
-        // Rollback on error
-        useAgentSubChatStore
-          .getState()
-          .updateSubChatName(subChatId, oldName || "New Chat")
-      } finally {
-        setRenameLoading(false)
-        setRenamingSubChat(null)
+        store.updateSubChatName(subChatId, oldName)
       }
     },
-    [renamingSubChat, renameMutation, setJustCreatedIds],
+    [renameMutation, setJustCreatedIds],
   )
 
   const handleCreateNew = async () => {
@@ -994,7 +1021,7 @@ export function AgentsSubChatsSidebar({
   useHotkeys(
     "escape",
     () => {
-      if (archiveAgentDialogOpen || renameDialogOpen) return
+      if (archiveAgentDialogOpen || editingSubChatId) return
       if (isMultiSelectMode) {
         clearSubChatSelection()
         setFocusedChatIndex(-1)
@@ -1004,7 +1031,7 @@ export function AgentsSubChatsSidebar({
       isMultiSelectMode,
       clearSubChatSelection,
       archiveAgentDialogOpen,
-      renameDialogOpen,
+      editingSubChatId,
     ],
   )
 
@@ -1432,24 +1459,36 @@ export function AgentsSubChatsSidebar({
                                     </div>
                                     <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                                       <div className="flex items-center gap-1">
-                                        <span
-                                          ref={(el) => {
-                                            if (el)
-                                              subChatNameRefs.current.set(
-                                                subChat.id,
-                                                el,
-                                              )
-                                          }}
-                                          className="truncate block text-sm leading-tight flex-1"
-                                        >
-                                          <TypewriterText
-                                            text={subChat.name || ""}
-                                            placeholder="New Chat"
-                                            id={subChat.id}
-                                            isJustCreated={justCreatedIds.has(subChat.id)}
-                                            showPlaceholder={true}
+                                        {editingSubChatId === subChat.id ? (
+                                          <InlineRenameInput
+                                            name={subChat.name || ""}
+                                            onSave={(newName) => {
+                                              setEditingSubChatId(null)
+                                              handleSaveSubChatRename(subChat.id, newName)
+                                            }}
+                                            onCancel={() => setEditingSubChatId(null)}
                                           />
-                                        </span>
+                                        ) : (
+                                          <span
+                                            ref={(el) => {
+                                              if (el)
+                                                subChatNameRefs.current.set(subChat.id, el)
+                                            }}
+                                            className="truncate block text-sm leading-tight flex-1"
+                                            onDoubleClick={(e) => {
+                                              e.stopPropagation()
+                                              setEditingSubChatId(subChat.id)
+                                            }}
+                                          >
+                                            <TypewriterText
+                                              text={subChat.name || ""}
+                                              placeholder="New Chat"
+                                              id={subChat.id}
+                                              isJustCreated={justCreatedIds.has(subChat.id)}
+                                              showPlaceholder={true}
+                                            />
+                                          </span>
+                                        )}
                                         {!isMultiSelectMode && (
                                           <button
                                             onClick={(e) => {
@@ -1736,24 +1775,36 @@ export function AgentsSubChatsSidebar({
                                     </div>
                                     <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                                       <div className="flex items-center gap-1">
-                                        <span
-                                          ref={(el) => {
-                                            if (el)
-                                              subChatNameRefs.current.set(
-                                                subChat.id,
-                                                el,
-                                              )
-                                          }}
-                                          className="truncate block text-sm leading-tight flex-1"
-                                        >
-                                          <TypewriterText
-                                            text={subChat.name || ""}
-                                            placeholder="New Chat"
-                                            id={subChat.id}
-                                            isJustCreated={justCreatedIds.has(subChat.id)}
-                                            showPlaceholder={true}
+                                        {editingSubChatId === subChat.id ? (
+                                          <InlineRenameInput
+                                            name={subChat.name || ""}
+                                            onSave={(newName) => {
+                                              setEditingSubChatId(null)
+                                              handleSaveSubChatRename(subChat.id, newName)
+                                            }}
+                                            onCancel={() => setEditingSubChatId(null)}
                                           />
-                                        </span>
+                                        ) : (
+                                          <span
+                                            ref={(el) => {
+                                              if (el)
+                                                subChatNameRefs.current.set(subChat.id, el)
+                                            }}
+                                            className="truncate block text-sm leading-tight flex-1"
+                                            onDoubleClick={(e) => {
+                                              e.stopPropagation()
+                                              setEditingSubChatId(subChat.id)
+                                            }}
+                                          >
+                                            <TypewriterText
+                                              text={subChat.name || ""}
+                                              placeholder="New Chat"
+                                              id={subChat.id}
+                                              isJustCreated={justCreatedIds.has(subChat.id)}
+                                              showPlaceholder={true}
+                                            />
+                                          </span>
+                                        )}
                                         {!isMultiSelectMode && (
                                           <button
                                             onClick={(e) => {
@@ -1914,17 +1965,6 @@ export function AgentsSubChatsSidebar({
         )}
       </AnimatePresence>
 
-      {/* Rename Dialog */}
-      <AgentsRenameSubChatDialog
-        isOpen={renameDialogOpen}
-        onClose={() => {
-          setRenameDialogOpen(false)
-          setRenamingSubChat(null)
-        }}
-        onSave={handleRenameSave}
-        currentName={renamingSubChat?.name || ""}
-        isLoading={renameLoading}
-      />
 
       {/* Archive Agent Confirmation Dialog */}
       <AlertDialog

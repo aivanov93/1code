@@ -47,7 +47,6 @@ import { remoteTrpc } from "../../lib/remote-trpc"
 // Desktop: archive is handled inline, not via hook
 // import { DiscordIcon } from "@/components/icons"
 import { DiscordIcon } from "../../icons"
-import { AgentsRenameSubChatDialog } from "../agents/components/agents-rename-subchat-dialog"
 import { OpenLocallyDialog } from "../agents/components/open-locally-dialog"
 import { useAutoImport } from "../agents/hooks/use-auto-import"
 import { ConfirmArchiveDialog } from "../../components/confirm-archive-dialog"
@@ -449,6 +448,9 @@ const AgentChatItem = React.memo(function AgentChatItem({
   onArchive,
   onTogglePin,
   onRenameClick,
+  onSaveRename,
+  isEditing,
+  onEditingChange,
   onCopyBranch,
   onArchiveAllBelow,
   onArchiveOthers,
@@ -497,6 +499,9 @@ const AgentChatItem = React.memo(function AgentChatItem({
   onArchive: (chatId: string) => void
   onTogglePin: (chatId: string) => void
   onRenameClick: (chat: { id: string; name: string | null; isRemote?: boolean }) => void
+  onSaveRename: (chatId: string, newName: string, isRemote?: boolean) => void
+  isEditing: boolean
+  onEditingChange: (chatId: string | null) => void
   onCopyBranch: (branch: string) => void
   onArchiveAllBelow: (chatId: string) => void
   onArchiveOthers: (chatId: string) => void
@@ -512,6 +517,41 @@ const AgentChatItem = React.memo(function AgentChatItem({
 }) {
   // Resolved hotkey for context menu
   const archiveWorkspaceHotkey = useResolvedHotkeyDisplay("archive-workspace")
+
+  // Inline rename state
+  const [editValue, setEditValue] = useState(chatName || "")
+  const renameInputRef = useRef<HTMLInputElement>(null)
+  const editStartTimeRef = useRef(0)
+
+  const handleRenameSave = useCallback(() => {
+    const trimmed = editValue.trim()
+    if (trimmed && trimmed !== (chatName || "")) {
+      onSaveRename(chatId, trimmed, isRemote)
+    }
+    onEditingChange(null)
+  }, [editValue, chatId, chatName, isRemote, onSaveRename, onEditingChange])
+
+  const handleRenameKeyDown = useCallback((e: React.KeyboardEvent) => {
+    e.stopPropagation() // prevent parent from intercepting space/enter
+    if (e.key === "Enter") { e.preventDefault(); handleRenameSave() }
+    else if (e.key === "Escape") { e.preventDefault(); setEditValue(chatName || ""); onEditingChange(null) }
+  }, [handleRenameSave, chatName, onEditingChange])
+
+  const handleRenameBlur = useCallback(() => {
+    if (Date.now() - editStartTimeRef.current < 200) {
+      requestAnimationFrame(() => { renameInputRef.current?.focus(); renameInputRef.current?.select() })
+      return
+    }
+    handleRenameSave()
+  }, [handleRenameSave])
+
+  useEffect(() => {
+    if (isEditing && renameInputRef.current) {
+      editStartTimeRef.current = Date.now()
+      setEditValue(chatName || "")
+      requestAnimationFrame(() => { renameInputRef.current?.focus(); renameInputRef.current?.select() })
+    }
+  }, [isEditing, chatName])
 
   return (
     <ContextMenu>
@@ -585,18 +625,35 @@ const AgentChatItem = React.memo(function AgentChatItem({
             )}
             <div className="flex-1 min-w-0 flex flex-col gap-0.5">
               <div className="flex items-center gap-1">
-                <span
-                  ref={(el) => nameRefCallback(chatId, el)}
-                  className="truncate block text-sm leading-tight flex-1"
-                >
-                  <TypewriterText
-                    text={chatName || ""}
-                    placeholder="New workspace"
-                    id={chatId}
-                    isJustCreated={isJustCreated}
-                    showPlaceholder={true}
+                {isEditing ? (
+                  <input
+                    ref={renameInputRef}
+                    type="text"
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    onKeyDown={handleRenameKeyDown}
+                    onBlur={handleRenameBlur}
+                    onClick={(e) => e.stopPropagation()}
+                    className="truncate block text-sm leading-tight flex-1 bg-transparent outline-none border-none min-w-0"
                   />
-                </span>
+                ) : (
+                  <span
+                    ref={(el) => nameRefCallback(chatId, el)}
+                    className="truncate block text-sm leading-tight flex-1"
+                    onDoubleClick={(e) => {
+                      e.stopPropagation()
+                      onEditingChange(chatId)
+                    }}
+                  >
+                    <TypewriterText
+                      text={chatName || ""}
+                      placeholder="New workspace"
+                      id={chatId}
+                      isJustCreated={isJustCreated}
+                      showPlaceholder={true}
+                    />
+                  </span>
+                )}
                 {/* Archive button or inline loader/status when icon is hidden */}
                 {!isMultiSelectMode && !isMobileFullscreen && (
                   <div className="flex-shrink-0 w-3.5 h-3.5 flex items-center justify-center relative">
@@ -723,7 +780,7 @@ const AgentChatItem = React.memo(function AgentChatItem({
             <ContextMenuItem onClick={() => onTogglePin(chatId)}>
               {isPinned ? "Unpin workspace" : "Pin workspace"}
             </ContextMenuItem>
-            <ContextMenuItem onClick={() => onRenameClick({ id: chatId, name: chatName, isRemote })}>
+            <ContextMenuItem onClick={() => onEditingChange(chatId)}>
               Rename workspace
             </ContextMenuItem>
             {chatBranch && (
@@ -808,6 +865,7 @@ function chatListSectionPropsAreEqual(
   if (prevProps.areAllSelectedPinned !== nextProps.areAllSelectedPinned) return false
   if (prevProps.archivePending !== nextProps.archivePending) return false
   if (prevProps.archiveBatchPending !== nextProps.archiveBatchPending) return false
+  if (prevProps.editingChatId !== nextProps.editingChatId) return false
   if (prevProps.title !== nextProps.title) return false
   if (prevProps.isMobileFullscreen !== nextProps.isMobileFullscreen) return false
   if (prevProps.isDesktop !== nextProps.isDesktop) return false
@@ -873,6 +931,9 @@ interface ChatListSectionProps {
   onArchive: (chatId: string) => void
   onTogglePin: (chatId: string) => void
   onRenameClick: (chat: { id: string; name: string | null; isRemote?: boolean }) => void
+  onSaveRename: (chatId: string, newName: string, isRemote?: boolean) => void
+  editingChatId: string | null
+  onEditingChange: (chatId: string | null) => void
   onCopyBranch: (branch: string) => void
   onArchiveAllBelow: (chatId: string) => void
   onArchiveOthers: (chatId: string) => void
@@ -916,6 +977,9 @@ const ChatListSection = React.memo(function ChatListSection({
   onArchive,
   onTogglePin,
   onRenameClick,
+  onSaveRename,
+  editingChatId,
+  onEditingChange,
   onCopyBranch,
   onArchiveAllBelow,
   onArchiveOthers,
@@ -1024,6 +1088,9 @@ const ChatListSection = React.memo(function ChatListSection({
               onArchive={onArchive}
               onTogglePin={onTogglePin}
               onRenameClick={onRenameClick}
+              onSaveRename={onSaveRename}
+              isEditing={editingChatId === chat.id}
+              onEditingChange={onEditingChange}
               onCopyBranch={onCopyBranch}
               onArchiveAllBelow={onArchiveAllBelow}
               onArchiveOthers={onArchiveOthers}
@@ -1574,14 +1641,8 @@ export function AgentsSidebar({
   const { primary: newWorkspaceHotkey, alt: newWorkspaceAltHotkey } = useResolvedHotkeyDisplayWithAlt("new-workspace")
   const settingsHotkey = useResolvedHotkeyDisplay("open-settings")
 
-  // Rename dialog state
-  const [renameDialogOpen, setRenameDialogOpen] = useState(false)
-  const [renamingChat, setRenamingChat] = useState<{
-    id: string
-    name: string
-    isRemote?: boolean
-  } | null>(null)
-  const [renameLoading, setRenameLoading] = useState(false)
+  // Inline rename state
+  const [editingChatId, setEditingChatId] = useState<string | null>(null)
 
   // Confirm archive dialog state
   const [confirmArchiveDialogOpen, setConfirmArchiveDialogOpen] = useState(false)
@@ -2042,41 +2103,29 @@ export function AgentsSidebar({
     })
   }, [])
 
-  const handleRenameClick = useCallback((chat: { id: string; name: string | null; isRemote?: boolean }) => {
-    setRenamingChat(chat as { id: string; name: string; isRemote?: boolean })
-    setRenameDialogOpen(true)
+  const handleRenameClick = useCallback((_chat: { id: string; name: string | null; isRemote?: boolean }) => {
+    // kept for interface compat; inline editing is triggered via onEditingChange
   }, [])
 
-  const handleRenameSave = async (newName: string) => {
-    if (!renamingChat) return
+  const handleEditingChange = useCallback((chatId: string | null) => {
+    setEditingChatId(chatId)
+  }, [])
 
-    const chatId = renamingChat.id
-    const oldName = renamingChat.name
-    const isRemote = renamingChat.isRemote
-
-    setRenameLoading(true)
-
+  const handleSaveRename = useCallback(async (chatId: string, newName: string, isRemote?: boolean) => {
+    const cachedChats = utils.chats.list.getData({})
+    const oldName = cachedChats?.find((c) => c.id === chatId)?.name || ""
     try {
       if (isRemote) {
-        // Remote chat rename
-        await renameRemoteChatMutation.mutateAsync({
-          chatId,
-          name: newName,
-        })
+        await renameRemoteChatMutation.mutateAsync({ chatId, name: newName })
       } else {
-        // Local chat rename - optimistically update the query cache
+        // Optimistic update
         utils.chats.list.setData({}, (old) => {
           if (!old) return old
           return old.map((c) => (c.id === chatId ? { ...c, name: newName } : c))
         })
-
         try {
-          await renameChatMutation.mutateAsync({
-            id: chatId,
-            name: newName,
-          })
+          await renameChatMutation.mutateAsync({ id: chatId, name: newName })
         } catch {
-          // Rollback on error
           utils.chats.list.setData({}, (old) => {
             if (!old) return old
             return old.map((c) => (c.id === chatId ? { ...c, name: oldName } : c))
@@ -2084,15 +2133,11 @@ export function AgentsSidebar({
           throw new Error("Failed to rename local workspace")
         }
       }
-      setRenameDialogOpen(false)
     } catch (error) {
-      console.error('[handleRenameSave] Rename failed:', error)
+      console.error('[handleSaveRename] Rename failed:', error)
       toast.error(isRemote ? "Failed to rename remote workspace" : "Failed to rename workspace")
-    } finally {
-      setRenameLoading(false)
-      setRenamingChat(null)
     }
-  }
+  }, [renameRemoteChatMutation, renameChatMutation, utils.chats.list])
 
   // Check if all selected chats are pinned
   const areAllSelectedPinned = useMemo(() => {
@@ -3159,6 +3204,9 @@ export function AgentsSidebar({
                 onArchive={handleArchiveSingle}
                 onTogglePin={handleTogglePin}
                 onRenameClick={handleRenameClick}
+                onSaveRename={handleSaveRename}
+                editingChatId={editingChatId}
+                onEditingChange={handleEditingChange}
                 onCopyBranch={handleCopyBranch}
                 onArchiveAllBelow={handleArchiveAllBelow}
                 onArchiveOthers={handleArchiveOthers}
@@ -3202,6 +3250,9 @@ export function AgentsSidebar({
                 onArchive={handleArchiveSingle}
                 onTogglePin={handleTogglePin}
                 onRenameClick={handleRenameClick}
+                onSaveRename={handleSaveRename}
+                editingChatId={editingChatId}
+                onEditingChange={handleEditingChange}
                 onCopyBranch={handleCopyBranch}
                 onArchiveAllBelow={handleArchiveAllBelow}
                 onArchiveOthers={handleArchiveOthers}
@@ -3355,18 +3406,6 @@ export function AgentsSidebar({
           />,
           document.body,
         )}
-      {/* Rename Dialog */}
-      <AgentsRenameSubChatDialog
-        isOpen={renameDialogOpen}
-        onClose={() => {
-          setRenameDialogOpen(false)
-          setRenamingChat(null)
-        }}
-        onSave={handleRenameSave}
-        currentName={renamingChat?.name || ""}
-        isLoading={renameLoading}
-      />
-
       {/* Confirm Archive Dialog */}
       <ConfirmArchiveDialog
         isOpen={confirmArchiveDialogOpen}

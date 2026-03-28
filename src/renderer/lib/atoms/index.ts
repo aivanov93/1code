@@ -888,9 +888,6 @@ export const chatSourceModeAtom = atomWithStorage<ChatSourceMode>(
 // DEV TOOLS UNLOCK (Hidden feature)
 // ============================================
 
-// DevTools unlock state (hidden feature - click Beta tab 5 times to enable)
-// Persisted per-session only (not in localStorage for security)
-export const devToolsUnlockedAtom = atom<boolean>(false)
 
 // ============================================
 // PREFERRED EDITOR

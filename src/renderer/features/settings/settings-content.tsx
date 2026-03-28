@@ -2,7 +2,6 @@ import { useAtomValue, useSetAtom } from "jotai"
 import { useEffect } from "react"
 import {
   agentsSettingsDialogActiveTabAtom,
-  devToolsUnlockedAtom,
 } from "../../lib/atoms"
 import { desktopViewAtom } from "../agents/atoms"
 import { AgentsAppearanceTab } from "../../components/dialogs/settings-tabs/agents-appearance-tab"
@@ -17,13 +16,8 @@ import { AgentsProjectsTab } from "../../components/dialogs/settings-tabs/agents
 import { AgentsSkillsTab } from "../../components/dialogs/settings-tabs/agents-skills-tab"
 import { AgentsPluginsTab } from "../../components/dialogs/settings-tabs/agents-plugins-tab"
 
-// Check if we're in development mode
-const isDevelopment = import.meta.env.DEV
-
 export function SettingsContent() {
   const activeTab = useAtomValue(agentsSettingsDialogActiveTabAtom)
-  const devToolsUnlocked = useAtomValue(devToolsUnlockedAtom)
-  const showDebugTab = isDevelopment || devToolsUnlocked
   const setDesktopView = useSetAtom(desktopViewAtom)
 
   // Escape key closes settings
@@ -61,7 +55,7 @@ export function SettingsContent() {
       case "beta":
         return <AgentsBetaTab />
       case "debug":
-        return showDebugTab ? <AgentsDebugTab /> : null
+        return <AgentsDebugTab />
       default:
         return null
     }

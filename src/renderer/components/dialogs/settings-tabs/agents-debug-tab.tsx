@@ -255,13 +255,13 @@ export function AgentsDebugTab() {
         </div>
       </div>
 
-      {/* Developer Tools (dev mode only) */}
-      {isDev && (
-        <div className="space-y-3">
-          <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-            Developer Tools
-          </h4>
-          <div className="rounded-lg border bg-muted/30 divide-y">
+      {/* Developer Tools */}
+      <div className="space-y-3">
+        <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+          Developer Tools
+        </h4>
+        <div className="rounded-lg border bg-muted/30 divide-y">
+          {isDev && (
             <div className="flex items-center justify-between p-3">
               <div className="flex items-center gap-2">
                 <Scan className="h-4 w-4 text-muted-foreground" />
@@ -278,42 +278,42 @@ export function AgentsDebugTab() {
                 disabled={reactScanLoading}
               />
             </div>
-            <div className="flex items-center justify-between p-3">
-              <div className="flex items-center gap-2">
-                <WifiOff className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <span className="text-sm">Simulate Offline</span>
-                  <p className="text-xs text-muted-foreground">
-                    Test offline mode without disconnecting
-                  </p>
-                </div>
+          )}
+          <div className="flex items-center justify-between p-3">
+            <div className="flex items-center gap-2">
+              <WifiOff className="h-4 w-4 text-muted-foreground" />
+              <div>
+                <span className="text-sm">Simulate Offline</span>
+                <p className="text-xs text-muted-foreground">
+                  Test offline mode without disconnecting
+                </p>
               </div>
-              <Switch
-                checked={offlineSimulation?.enabled ?? false}
-                onCheckedChange={(enabled) =>
-                  setOfflineSimulationMutation.mutate({ enabled })
-                }
-                disabled={setOfflineSimulationMutation.isPending}
-              />
             </div>
-            <div className="flex items-center justify-between p-3">
-              <div className="flex items-center gap-2">
-                <FileJson className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <span className="text-sm">Show Message JSON</span>
-                  <p className="text-xs text-muted-foreground">
-                    Display raw JSON below each message in chat
-                  </p>
-                </div>
+            <Switch
+              checked={offlineSimulation?.enabled ?? false}
+              onCheckedChange={(enabled) =>
+                setOfflineSimulationMutation.mutate({ enabled })
+              }
+              disabled={setOfflineSimulationMutation.isPending}
+            />
+          </div>
+          <div className="flex items-center justify-between p-3">
+            <div className="flex items-center gap-2">
+              <FileJson className="h-4 w-4 text-muted-foreground" />
+              <div>
+                <span className="text-sm">Show Message JSON</span>
+                <p className="text-xs text-muted-foreground">
+                  Display raw JSON below each message in chat
+                </p>
               </div>
-              <Switch
-                checked={showMessageJson}
-                onCheckedChange={setShowMessageJson}
-              />
             </div>
+            <Switch
+              checked={showMessageJson}
+              onCheckedChange={setShowMessageJson}
+            />
           </div>
         </div>
-      )}
+      </div>
 
       {/* Quick Actions */}
       <div className="space-y-3">

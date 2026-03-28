@@ -1,13 +1,12 @@
 import { useAtom, useAtomValue, useSetAtom } from "jotai"
 import { ChevronLeft } from "lucide-react"
-import { useCallback, useEffect, useMemo, useRef } from "react"
+import { useCallback, useEffect, useMemo } from "react"
 import {
   EyeOpenFilledIcon,
   SlidersFilledIcon,
 } from "../../icons"
 import {
   agentsSettingsDialogActiveTabAtom,
-  devToolsUnlockedAtom,
   isDesktopAtom,
   type SettingsTab,
 } from "../../lib/atoms"
@@ -25,11 +24,6 @@ import {
 } from "../../components/ui/icons"
 import { desktopViewAtom } from "../agents/atoms"
 
-// Check if we're in development mode
-const isDevelopment = import.meta.env.DEV
-
-// Clicks required to unlock devtools in production
-const DEVTOOLS_UNLOCK_CLICKS = 5
 
 // General settings tabs
 const MAIN_TABS = [
@@ -134,7 +128,6 @@ function TabButton({ tab, isActive, onClick }: TabButtonProps) {
 
 export function SettingsSidebar() {
   const [activeTab, setActiveTab] = useAtom(agentsSettingsDialogActiveTabAtom)
-  const [devToolsUnlocked, setDevToolsUnlocked] = useAtom(devToolsUnlockedAtom)
   const setDesktopView = useSetAtom(desktopViewAtom)
   const isDesktop = useAtomValue(isDesktopAtom)
 
@@ -145,34 +138,9 @@ export function SettingsSidebar() {
     window.desktopApi.setTrafficLightVisibility(false)
   }, [isDesktop])
 
-  // Beta tab click counter for unlocking devtools
-  const betaClickCountRef = useRef(0)
-  const betaClickTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-
-  // Show debug tab if in development OR if devtools are unlocked
-  const showDebugTab = isDevelopment || devToolsUnlocked
-
-  const mainTabs = useMemo(() => {
-    if (showDebugTab) return [...MAIN_TABS, DEBUG_TAB]
-    return MAIN_TABS
-  }, [showDebugTab])
+  const mainTabs = useMemo(() => [...MAIN_TABS, DEBUG_TAB], [])
 
   const handleTabClick = (tabId: SettingsTab) => {
-    // Handle Beta tab clicks for devtools unlock
-    if (tabId === "beta" && !devToolsUnlocked) {
-      betaClickCountRef.current++
-      if (betaClickTimeoutRef.current) {
-        clearTimeout(betaClickTimeoutRef.current)
-      }
-      betaClickTimeoutRef.current = setTimeout(() => {
-        betaClickCountRef.current = 0
-      }, 2000)
-      if (betaClickCountRef.current >= DEVTOOLS_UNLOCK_CLICKS) {
-        setDevToolsUnlocked(true)
-        betaClickCountRef.current = 0
-        window.desktopApi?.unlockDevTools()
-      }
-    }
     setActiveTab(tabId)
   }
 

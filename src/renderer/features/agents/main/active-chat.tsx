@@ -1397,6 +1397,7 @@ const DiffSidebarContent = memo(function DiffSidebarContent({
             onCommitFileSelect={handleCommitFileSelect}
             onActiveTabChange={setActiveTab}
             pushCount={diffStatus?.pushCount}
+            parsedFileDiffs={parsedFileDiffs as ParsedDiffFile[] | null}
           />
           {/* Resize handle - styled like ResizableSidebar */}
           <div
@@ -2463,6 +2464,21 @@ const ChatViewInner = memo(function ChatViewInner({
   // Ref for isStreaming to use in callbacks/effects that need fresh value
   const isStreamingRef = useRef(isStreaming)
   isStreamingRef.current = isStreaming
+
+  // Safety timeout: if status is "submitted" for 60s with no assistant content,
+  // the stream likely died silently. Force-stop to reset status to "ready".
+  useEffect(() => {
+    if (status !== "submitted") return
+    const hasAssistant = messages.some((m) => m.role === "assistant")
+    if (hasAssistant) return
+    const timer = setTimeout(() => {
+      if (isStreamingRef.current && !messages.some((m) => m.role === "assistant")) {
+        console.warn(`[chat] Safety timeout: stream stuck in "submitted" for 60s, stopping. sub=${subChatId.slice(-8)}`)
+        stopRef.current()
+      }
+    }, 60_000)
+    return () => clearTimeout(timer)
+  }, [status, messages, subChatId])
 
   // Track compacting status from SDK
   const compactingSubChats = useAtomValue(compactingSubChatsAtom)
@@ -5517,6 +5533,7 @@ export function ChatView({
     id: string
     name?: string | null
     mode?: "plan" | "agent" | null
+    position?: string | null
     created_at?: Date | string | null
     updated_at?: Date | string | null
     messages?: any
@@ -6373,13 +6390,19 @@ Make sure to preserve all functionality from both branches when resolving confli
         typeof sc.updated_at === "string"
           ? sc.updated_at
           : sc.updated_at?.toISOString()
+      // Prefer local name over DB if local was renamed optimistically
+      // (the rename mutation may not have completed before this refetch)
+      const dbName = sc.name || "New Chat"
+      const localName = existingLocal?.name
+      const name = (localName && localName !== dbName && localName !== "New Chat")
+        ? localName : dbName
       return {
         id: sc.id,
-        name: sc.name || "New Chat",
-        // Prefer DB timestamp, fall back to local timestamp, then current time
+        name,
         created_at:
           createdAt ?? existingLocal?.created_at ?? new Date().toISOString(),
         updated_at: updatedAt ?? existingLocal?.updated_at,
+        position: sc.position ?? existingLocal?.position ?? "a0",
         mode:
           (sc.mode as "plan" | "agent" | undefined) ||
           existingLocal?.mode ||

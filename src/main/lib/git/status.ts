@@ -1,15 +1,32 @@
 import type { ChangedFile, GitChangesStatus } from "../../../shared/changes-types";
+import { eq } from "drizzle-orm";
+import { homedir } from "os";
+import { resolve } from "path";
 import simpleGit from "simple-git";
 import { z } from "zod";
 import { publicProcedure, router } from "../trpc";
+import { getDatabase, projects } from "../db";
 import { assertRegisteredWorktree, secureFs } from "./security";
 import { applyNumstatToFiles } from "./utils/apply-numstat";
 import {
-	parseGitLog,
 	parseGitStatus,
-	parseNameStatus,
 } from "./utils/parse-status";
 import { gitCache } from "./cache";
+
+// Always block root-level paths regardless of project config
+const ALWAYS_BLOCKED = new Set(["/"])
+
+export function shouldSkipGitStatus(worktreePath: string): boolean {
+	const resolved = resolve(worktreePath)
+	if (ALWAYS_BLOCKED.has(resolved)) return true
+	try {
+		const db = getDatabase()
+		const project = db.select({ skipGitStatus: projects.skipGitStatus })
+			.from(projects).where(eq(projects.path, resolved)).get()
+		if (project?.skipGitStatus) return true
+	} catch { /* DB not ready yet */ }
+	return false
+}
 
 export const createStatusRouter = () => {
 	return router({
@@ -23,6 +40,16 @@ export const createStatusRouter = () => {
 			.query(async ({ input }): Promise<GitChangesStatus> => {
 				assertRegisteredWorktree(input.worktreePath);
 
+				// Skip git for projects that opted out or dangerous root-level paths
+				if (shouldSkipGitStatus(input.worktreePath)) {
+					console.warn(`[getStatus] Skipped (skipGitStatus): ${input.worktreePath}`);
+					return {
+						branch: "", defaultBranch: input.defaultBranch || "main",
+						againstBase: [], commits: [], staged: [], unstaged: [], untracked: [],
+						ahead: 0, behind: 0, pushCount: 0, pullCount: 0, hasUpstream: false,
+					};
+				}
+
 				// Check cache first
 				const cached = gitCache.getStatus<GitChangesStatus>(input.worktreePath);
 				if (cached) {
@@ -30,55 +57,62 @@ export const createStatusRouter = () => {
 					return cached;
 				}
 
-				console.log("[getStatus] Cache miss, fetching:", input.worktreePath);
+				const t0 = Date.now();
 				const git = simpleGit(input.worktreePath);
 				const defaultBranch = input.defaultBranch || "main";
 
-				const status = await git.status();
+				// Timeout: simple-git runs `git status -u` which recursively walks
+				// untracked dirs. On large worktrees this can hang indefinitely.
+				const GIT_STATUS_TIMEOUT_MS = 15_000;
+				const statusTimeout = new Promise<never>((_, reject) =>
+					setTimeout(() => reject(new Error(`git.status() timed out after ${GIT_STATUS_TIMEOUT_MS / 1000}s for ${input.worktreePath}`)), GIT_STATUS_TIMEOUT_MS),
+				);
+				let status: Awaited<ReturnType<typeof git.status>>;
+				try {
+					status = await Promise.race([git.status(), statusTimeout]);
+				} catch (err) {
+					console.error(`[getStatus] ${err}`);
+					throw err;
+				}
 				const parsed = parseGitStatus(status);
 
-				// Run independent git operations in parallel (VS Code style)
-				const [branchComparison, trackingStatus] = await Promise.all([
-					getBranchComparison(git, defaultBranch),
+				// Bail if the repo returns an unreasonable number of files
+				const MAX_TOTAL_FILES = 5000;
+				const totalFiles = parsed.staged.length + parsed.unstaged.length + parsed.untracked.length;
+				if (totalFiles > MAX_TOTAL_FILES) {
+					console.warn(`[getStatus] Too many files (${totalFiles}) for ${input.worktreePath}, returning lightweight result`);
+					const skippedResult: GitChangesStatus = {
+						branch: parsed.branch, defaultBranch,
+						againstBase: [], commits: [],
+						staged: parsed.staged, unstaged: parsed.unstaged, untracked: parsed.untracked,
+						ahead: 0, behind: 0, pushCount: 0, pullCount: 0, hasUpstream: false,
+					};
+					gitCache.setStatus(input.worktreePath, skippedResult);
+					return skippedResult;
+				}
+
+				const [branchCounts, trackingStatus] = await Promise.all([
+					getBranchComparisonCounts(git, defaultBranch),
 					getTrackingBranchStatus(git),
 				]);
 
-				// Run numstat operations in parallel
 				await Promise.all([
-					applyNumstatToFiles(git, parsed.staged, [
-						"diff",
-						"--cached",
-						"--numstat",
-					]),
+					applyNumstatToFiles(git, parsed.staged, ["diff", "--cached", "--numstat"]),
 					applyNumstatToFiles(git, parsed.unstaged, ["diff", "--numstat"]),
 					applyUntrackedLineCount(input.worktreePath, parsed.untracked),
 				]);
 
 				const result: GitChangesStatus = {
-					branch: parsed.branch,
-					defaultBranch,
-					againstBase: branchComparison.againstBase,
-					commits: branchComparison.commits,
-					staged: parsed.staged,
-					unstaged: parsed.unstaged,
-					untracked: parsed.untracked,
-					ahead: branchComparison.ahead,
-					behind: branchComparison.behind,
-					pushCount: trackingStatus.pushCount,
-					pullCount: trackingStatus.pullCount,
+					branch: parsed.branch, defaultBranch,
+					againstBase: [], commits: [],
+					staged: parsed.staged, unstaged: parsed.unstaged, untracked: parsed.untracked,
+					ahead: branchCounts.ahead, behind: branchCounts.behind,
+					pushCount: trackingStatus.pushCount, pullCount: trackingStatus.pullCount,
 					hasUpstream: trackingStatus.hasUpstream,
 				};
 
-				// Store in cache
 				gitCache.setStatus(input.worktreePath, result);
-
-				console.log("[getStatus] Cached and returning:", {
-					branch: result.branch,
-					stagedCount: result.staged.length,
-					unstagedCount: result.unstaged.length,
-					untrackedCount: result.untracked.length,
-					commitsCount: result.commits.length,
-				});
+				console.log(`[getStatus] ${input.worktreePath} done in ${Date.now() - t0}ms (${totalFiles} files)`);
 				return result;
 			}),
 
@@ -185,19 +219,15 @@ export const createStatusRouter = () => {
 	});
 };
 
-interface BranchComparison {
-	commits: GitChangesStatus["commits"];
-	againstBase: ChangedFile[];
+interface BranchComparisonCounts {
 	ahead: number;
 	behind: number;
 }
 
-async function getBranchComparison(
+async function getBranchComparisonCounts(
 	git: ReturnType<typeof simpleGit>,
 	defaultBranch: string,
-): Promise<BranchComparison> {
-	let commits: GitChangesStatus["commits"] = [];
-	let againstBase: ChangedFile[] = [];
+): Promise<BranchComparisonCounts> {
 	let ahead = 0;
 	let behind = 0;
 
@@ -211,41 +241,23 @@ async function getBranchComparison(
 		const [behindStr, aheadStr] = tracking.trim().split(/\s+/);
 		behind = Number.parseInt(behindStr || "0", 10);
 		ahead = Number.parseInt(aheadStr || "0", 10);
-
-		const logOutput = await git.raw([
-			"log",
-			`origin/${defaultBranch}..HEAD`,
-			"--format=%H|%h|%s|%b|%an|%aI",
-		]);
-		commits = parseGitLog(logOutput);
-
-		if (ahead > 0) {
-			const nameStatus = await git.raw([
-				"diff",
-				"--name-status",
-				`origin/${defaultBranch}...HEAD`,
-			]);
-			againstBase = parseNameStatus(nameStatus);
-
-			await applyNumstatToFiles(git, againstBase, [
-				"diff",
-				"--numstat",
-				`origin/${defaultBranch}...HEAD`,
-			]);
-		}
 	} catch {}
 
-	return { commits, againstBase, ahead, behind };
+	return { ahead, behind };
 }
 
 /** Max file size for line counting (1 MiB) - skip larger files to avoid OOM */
 const MAX_LINE_COUNT_SIZE = 1 * 1024 * 1024;
 
+const MAX_UNTRACKED_LINE_COUNT = 500;
+
 async function applyUntrackedLineCount(
 	worktreePath: string,
 	untracked: ChangedFile[],
 ): Promise<void> {
-	for (const file of untracked) {
+	// Cap to avoid reading thousands of files in large worktrees
+	const filesToCount = untracked.slice(0, MAX_UNTRACKED_LINE_COUNT);
+	for (const file of filesToCount) {
 		try {
 			const stats = await secureFs.stat(worktreePath, file.path);
 			if (stats.size > MAX_LINE_COUNT_SIZE) continue;

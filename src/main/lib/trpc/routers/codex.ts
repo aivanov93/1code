@@ -1587,18 +1587,20 @@ export const codexRouter = router({
           if (!isActive) return
           try {
             emit.next(chunk)
-          } catch {
+          } catch (err) {
+            console.warn(`[codex] safeEmit died: type=${chunk?.type} err=${err}`)
             isActive = false
           }
         }
 
+        // Always attempt complete even if safeEmit died - the renderer
+        // must receive onComplete to reset useChat status from "streaming".
         const safeComplete = () => {
-          if (!isActive) return
           isActive = false
           try {
             emit.complete()
           } catch {
-            // Ignore double completion
+            // Already completed
           }
         }
 
@@ -1749,8 +1751,29 @@ export const codexRouter = router({
               return usagePromise
             }
 
+            // The ACP provider validates modelId against availableModels, but the
+            // Codex agent accepts thinking suffixes (e.g. "gpt-5.4/high") that aren't
+            // listed. Patch setModel to bypass client-side validation and forward directly.
+            const langModel = provider.languageModel(selectedModelId)
+            const originalSetModel = langModel.setModel.bind(langModel)
+            langModel.setModel = async (modelId: string) => {
+              try {
+                return await originalSetModel(modelId)
+              } catch (e: any) {
+                if (!e?.message?.includes("is not available")) throw e
+                const conn = (langModel as any).connection
+                const sid = (langModel as any).sessionId
+                if (!conn || !sid) throw e
+                // ACP provider 0.3.0 renamed to unstable_setSessionModel
+                const rpc = conn.unstable_setSessionModel || conn.setSessionModel
+                if (!rpc) throw e
+                await rpc.call(conn, { sessionId: sid, modelId })
+                ;(langModel as any).currentModelId = modelId
+              }
+            }
+
             const result = streamText({
-              model: provider.languageModel(selectedModelId),
+              model: langModel,
               messages: [
                 {
                   role: "user",

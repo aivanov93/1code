@@ -1,13 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron"
 import { exposeElectronTRPC } from "trpc-electron/main"
 
-// Only initialize Sentry in production to avoid IPC errors in dev mode
-if (process.env.NODE_ENV === "production") {
-  import("@sentry/electron/renderer").then((Sentry) => {
-    Sentry.init()
-  })
-}
-
 // Expose tRPC IPC bridge for type-safe communication
 exposeElectronTRPC()
 
@@ -120,7 +113,6 @@ contextBridge.exposeInMainWorld("desktopApi", {
 
   // DevTools
   toggleDevTools: () => ipcRenderer.invoke("window:toggle-devtools"),
-  unlockDevTools: () => ipcRenderer.invoke("window:unlock-devtools"),
 
   // Analytics
   setAnalyticsOptOut: (optedOut: boolean) => ipcRenderer.invoke("analytics:set-opt-out", optedOut),
@@ -327,7 +319,6 @@ export interface DesktopApi {
   releaseChat: (chatId: string) => Promise<void>
   focusChatOwner: (chatId: string) => Promise<boolean>
   toggleDevTools: () => Promise<void>
-  unlockDevTools: () => Promise<void>
   setAnalyticsOptOut: (optedOut: boolean) => Promise<void>
   setBadge: (count: number | null) => Promise<void>
   setBadgeIcon: (imageData: string | null) => Promise<void>

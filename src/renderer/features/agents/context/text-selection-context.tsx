@@ -41,6 +41,7 @@ export interface HoveredDiffLineState {
 interface TextSelectionContextValue extends TextSelectionState {
   hoveredDiffLine: HoveredDiffLineState | null
   clearSelection: () => void
+  clearHoveredDiffLine: () => void
   // Legacy getters for backwards compatibility
   selectedMessageId: string | null
 }
@@ -279,6 +280,10 @@ export function TextSelectionProvider({
       source: null,
       selectionRect: null,
     })
+  }, [])
+
+  const clearHoveredDiffLine = useCallback(() => {
+    setHoveredDiffLine(null)
   }, [])
 
   useEffect(() => {
@@ -587,8 +592,9 @@ export function TextSelectionProvider({
     ...state,
     hoveredDiffLine,
     clearSelection,
+    clearHoveredDiffLine,
     selectedMessageId,
-  }), [state, hoveredDiffLine, clearSelection, selectedMessageId])
+  }), [state, hoveredDiffLine, clearSelection, clearHoveredDiffLine, selectedMessageId])
 
   return (
     <TextSelectionContext.Provider value={contextValue}>

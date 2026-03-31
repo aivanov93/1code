@@ -1,8 +1,8 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo } from "react"
 import { useAtom, useAtomValue, useSetAtom } from "jotai"
-import { ArrowUpRight, TerminalSquare, Box, ListTodo } from "lucide-react"
+import { ArrowUpRight, TerminalSquare, Box, ListTodo, StickyNote } from "lucide-react"
 import { ResizableSidebar } from "@/components/ui/resizable-sidebar"
 import { Button } from "@/components/ui/button"
 import {
@@ -15,9 +15,6 @@ import {
   PlanIcon,
   DiffIcon,
   OriginalMCPIcon,
-  SearchIcon,
-  ExpandIcon,
-  CollapseIcon,
 } from "@/components/ui/icons"
 import { Kbd } from "@/components/ui/kbd"
 import { cn } from "@/lib/utils"
@@ -30,7 +27,6 @@ import {
   widgetOrderAtomFamily,
   WIDGET_REGISTRY,
   type WidgetId,
-  type DetailsSidebarTab,
 } from "./atoms"
 import { WidgetSettingsPopup } from "./widget-settings-popup"
 import { InfoSection } from "./sections/info-section"
@@ -39,9 +35,9 @@ import { PlanWidget } from "./sections/plan-widget"
 import { TerminalWidget } from "./sections/terminal-widget"
 import { ChangesWidget } from "./sections/changes-widget"
 import { McpWidget } from "./sections/mcp-widget"
-import { FilesTab, type FilesTabHandle } from "./sections/files-tab"
+import { NotesWidget } from "./sections/notes-widget"
 import type { ParsedDiffFile } from "./types"
-import { fileViewerOpenAtomFamily, type AgentMode } from "../agents/atoms"
+import type { AgentMode } from "../agents/atoms"
 import {
   agentsSettingsDialogOpenAtom,
   agentsSettingsDialogActiveTabAtom,
@@ -65,6 +61,8 @@ function getWidgetIcon(widgetId: WidgetId) {
       return DiffIcon
     case "mcp":
       return OriginalMCPIcon
+    case "notes":
+      return StickyNote
     default:
       return Box
   }
@@ -233,16 +231,8 @@ export function DetailsSidebar({
   // Global sidebar open state
   const [isOpen, setIsOpen] = useAtom(detailsSidebarOpenAtom)
 
-  // Active tab state (Details / Files)
+  // Active tab state is still persisted, but Files mode is retired.
   const [activeTab, setActiveTab] = useAtom(detailsSidebarTabAtom)
-
-  // Files tab ref for header actions
-  const filesTabRef = useRef<FilesTabHandle>(null)
-  const [filesAllExpanded, setFilesAllExpanded] = useState(false)
-
-  // Current file open in file viewer (for tree highlight sync)
-  const fileViewerAtom = useMemo(() => fileViewerOpenAtomFamily(chatId), [chatId])
-  const fileViewerPath = useAtomValue(fileViewerAtom)
 
   // Settings dialog atoms for MCP settings
   const setSettingsOpen = useSetAtom(agentsSettingsDialogOpenAtom)
@@ -274,13 +264,19 @@ export function DetailsSidebar({
 
   // Resolved hotkeys for tooltips
   const toggleDetailsHotkey = useResolvedHotkeyDisplay("toggle-details")
-  const fileSearchHotkey = useResolvedHotkeyDisplay("file-search")
 
   // Check if a widget should be shown
   const isWidgetVisible = useCallback(
     (widgetId: WidgetId) => visibleWidgets.includes(widgetId),
     [visibleWidgets],
   )
+
+  // Files tab was removed because recursive repo scans are too costly on large repos.
+  useEffect(() => {
+    if (activeTab === "files") {
+      setActiveTab("details")
+    }
+  }, [activeTab, setActiveTab])
 
   // Keyboard shortcut: Cmd+Shift+\ to toggle details sidebar
   useEffect(() => {
@@ -301,9 +297,6 @@ export function DetailsSidebar({
     window.addEventListener("keydown", handleKeyDown, true)
     return () => window.removeEventListener("keydown", handleKeyDown, true)
   }, [setIsOpen, isOpen])
-
-  // Stable noop callback for when onOpenFile is not provided
-  const noopSelectFile = useCallback(() => {}, [])
 
   return (
     <ResizableSidebar
@@ -342,81 +335,17 @@ export function DetailsSidebar({
               </TooltipContent>
             </Tooltip>
 
-            {/* Pill tabs */}
             <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-muted/50">
-              <button
-                type="button"
-                onClick={() => setActiveTab("details")}
-                className={cn(
-                  "px-2.5 py-1 text-xs font-medium rounded-md transition-colors",
-                  activeTab === "details"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
+              <div className="px-2.5 py-1 text-xs font-medium rounded-md bg-background text-foreground shadow-sm">
                 Details
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("files")}
-                className={cn(
-                  "px-2.5 py-1 text-xs font-medium rounded-md transition-colors",
-                  activeTab === "files"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                Files
-              </button>
+              </div>
             </div>
           </div>
 
-          {/* Right-side header actions */}
-          {activeTab === "details" ? (
-            <WidgetSettingsPopup workspaceId={chatId} isRemoteChat={isRemoteChat} />
-          ) : (
-            <div className="flex items-center gap-0.5">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => filesTabRef.current?.openSearch()}
-                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
-                  >
-                    <SearchIcon className="size-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  Search files
-                  {fileSearchHotkey && <Kbd>{fileSearchHotkey}</Kbd>}
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => filesTabRef.current?.toggleExpandCollapse()}
-                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
-                  >
-                    {filesAllExpanded ? (
-                      <CollapseIcon className="size-3.5" />
-                    ) : (
-                      <ExpandIcon className="size-3.5" />
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  {filesAllExpanded ? "Collapse all" : "Expand all"}
-                </TooltipContent>
-              </Tooltip>
-            </div>
-          )}
+          <WidgetSettingsPopup workspaceId={chatId} isRemoteChat={isRemoteChat} />
         </div>
 
-        {/* Tab content — both tabs always mounted to preserve state */}
-        <div className={cn("flex-1 overflow-y-auto py-2", activeTab !== "details" && "hidden")}>
+        <div className="flex-1 overflow-y-auto py-2">
           {widgetOrder.map((widgetId) => {
             // Skip if widget is not visible
             if (!isWidgetVisible(widgetId)) return null
@@ -523,19 +452,18 @@ export function DetailsSidebar({
                   </WidgetCard>
                 )
 
+              case "notes":
+                return (
+                  <WidgetCard key="notes" widgetId="notes" title="Notes" hideExpand>
+                    <NotesWidget subChatId={activeSubChatId || null} />
+                  </WidgetCard>
+                )
+
               default:
                 return null
             }
           })}
         </div>
-        <FilesTab
-          ref={filesTabRef}
-          worktreePath={worktreePath}
-          onSelectFile={onOpenFile ?? noopSelectFile}
-          onExpandedStateChange={setFilesAllExpanded}
-          currentViewerFilePath={fileViewerPath}
-          className={cn("flex-1", activeTab !== "files" && "hidden")}
-        />
       </div>
     </ResizableSidebar>
   )

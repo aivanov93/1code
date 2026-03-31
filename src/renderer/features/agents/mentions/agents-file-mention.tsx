@@ -115,7 +115,6 @@ interface AgentsFileMentionProps {
   changedFiles?: ChangedFile[] // Files changed in current sub-chat (shown at top)
   // Subpage navigation state
   showingFilesList?: boolean
-  showingSkillsList?: boolean
   showingAgentsList?: boolean
   showingToolsList?: boolean
 }
@@ -123,7 +122,6 @@ interface AgentsFileMentionProps {
 // Category navigation options (shown on root view)
 const CATEGORY_OPTIONS: FileMentionOption[] = [
   { id: "files", label: "Files & Folders", type: "category", path: "", repository: "" },
-  { id: "skills", label: "Skills", type: "category", path: "", repository: "" },
   { id: "agents", label: "Agents", type: "category", path: "", repository: "" },
   { id: "tools", label: "MCP", type: "category", path: "", repository: "" },
 ]
@@ -707,7 +705,6 @@ export const AgentsFileMention = memo(function AgentsFileMention({
   projectPath,
   changedFiles = [],
   showingFilesList = false,
-  showingSkillsList = false,
   showingAgentsList = false,
   showingToolsList = false,
 }: AgentsFileMentionProps) {
@@ -720,15 +717,6 @@ export const AgentsFileMention = memo(function AgentsFileMention({
 
   // Get session info (MCP servers, tools) from atom
   const sessionInfo = useAtomValue(sessionInfoAtom)
-
-  // Fetch skills from filesystem (cached for 5 minutes)
-  const { data: skills = [], isFetching: isFetchingSkills } = trpc.skills.listEnabled.useQuery(
-    projectPath ? { cwd: projectPath } : undefined,
-    {
-      enabled: isOpen,
-      staleTime: 5 * 60 * 1000, // 5 minutes - skills don't change frequently
-    },
-  )
 
   // Fetch custom agents from filesystem (cached for 5 minutes)
   const { data: customAgents = [], isFetching: isFetchingAgents } = trpc.agents.listEnabled.useQuery(
@@ -847,29 +835,6 @@ export const AgentsFileMention = memo(function AgentsFileMention({
     return sortFilesByRelevance(mapped, debouncedSearchText)
   }, [fileResults, changedFilePaths, debouncedSearchText])
 
-  // Convert skills to mention options
-  const skillOptions: FileMentionOption[] = useMemo(() => {
-    const searchLower = debouncedSearchText.toLowerCase()
-
-    return skills
-      .filter(skill =>
-        // Multi-word search: all words must match in name OR description
-        matchesMultiWordSearch(skill.name, searchLower) ||
-        matchesMultiWordSearch(skill.description, searchLower)
-      )
-      .map(skill => ({
-        id: `${MENTION_PREFIXES.SKILL}${skill.name}`,
-        label: skill.name,
-        path: skill.path, // file path for tooltip
-        repository: "",
-        truncatedPath: skill.description,
-        type: "skill" as const,
-        // Extended data for rich tooltip
-        description: skill.description,
-        source: skill.source,
-      }))
-  }, [skills, debouncedSearchText])
-
   // Convert custom agents to mention options
   const agentOptions: FileMentionOption[] = useMemo(() => {
     const searchLower = debouncedSearchText.toLowerCase()
@@ -923,34 +888,31 @@ export const AgentsFileMention = memo(function AgentsFileMention({
     })
   }, [allToolOptions, debouncedSearchText])
 
-  // Check if we have skills, agents, or tools
-  // Use base data (not search-filtered) for stable category display
-  const hasSkills = skills.length > 0
+  // Check if we have agents or tools (skills moved to $ trigger)
   const hasAgents = customAgents.length > 0
   const hasTools = allToolOptions.length > 0
-  const hasOnlyFiles = !hasSkills && !hasAgents && !hasTools
+  const hasOnlyFiles = !hasAgents && !hasTools
 
-  // Determine if we're in a subpage view (or showing files directly when no skills/agents/tools)
-  const isInSubpage = showingFilesList || showingSkillsList || showingAgentsList || showingToolsList || hasOnlyFiles
+  // Determine if we're in a subpage view (or showing files directly when no agents/tools)
+  const isInSubpage = showingFilesList || showingAgentsList || showingToolsList || hasOnlyFiles
 
   // Filter category options based on available data
   const availableCategoryOptions = useMemo(() => {
     return CATEGORY_OPTIONS.filter(category => {
-      if (category.id === "files") return true // Always show files
-      if (category.id === "skills") return hasSkills
+      if (category.id === "files") return true
       if (category.id === "agents") return hasAgents
       if (category.id === "tools") return hasTools
       return true
     })
-  }, [hasSkills, hasAgents, hasTools])
+  }, [hasAgents, hasTools])
 
   // Combined options for keyboard navigation
   // Subpage views show only that category's items
   // Root view shows changed files + category navigation options
   // Search filters globally in root view, within category in subpage
-  // If no skills, agents, or tools, skip root view and show files directly
+  // If no agents or tools, skip root view and show files directly
   const options: FileMentionOption[] = useMemo(() => {
-    // SUBPAGE: Files (or if no skills/agents/tools, show files directly)
+    // SUBPAGE: Files (or if no agents/tools, show files directly)
     if (showingFilesList || hasOnlyFiles) {
       const allFiles = [...changedFileOptions, ...repoFileOptions]
       if (debouncedSearchText) {
@@ -959,41 +921,35 @@ export const AgentsFileMention = memo(function AgentsFileMention({
       return allFiles
     }
 
-    // SUBPAGE: Skills
-    if (showingSkillsList) {
-      return skillOptions // already filtered by search in skillOptions memo
-    }
-
     // SUBPAGE: Agents
     if (showingAgentsList) {
-      return agentOptions // already filtered by search in agentOptions memo
+      return agentOptions
     }
 
     // SUBPAGE: MCP Tools
     if (showingToolsList) {
-      return toolOptions // already filtered by search in toolOptions memo
+      return toolOptions
     }
 
     // ROOT VIEW
     if (debouncedSearchText) {
-      // Global search: search across changed files + categories + skills + agents + tools + repo files
+      // Global search: search across changed files + categories + agents + tools + repo files
       const searchLower = debouncedSearchText.toLowerCase()
       const filteredCategories = availableCategoryOptions.filter(c =>
         c.label.toLowerCase().includes(searchLower)
       )
-      const allItems = [...changedFileOptions, ...filteredCategories, ...skillOptions, ...agentOptions, ...toolOptions, ...repoFileOptions]
+      const allItems = [...changedFileOptions, ...filteredCategories, ...agentOptions, ...toolOptions, ...repoFileOptions]
       return sortFilesByRelevance(allItems, debouncedSearchText)
     }
 
     // No search: Changed files FIRST (quick access), then category navigation
     return [...changedFileOptions, ...availableCategoryOptions]
-  }, [showingFilesList, showingSkillsList, showingAgentsList, showingToolsList, debouncedSearchText, changedFileOptions, repoFileOptions, skillOptions, agentOptions, toolOptions, hasOnlyFiles, availableCategoryOptions])
+  }, [showingFilesList, showingAgentsList, showingToolsList, debouncedSearchText, changedFileOptions, repoFileOptions, agentOptions, toolOptions, hasOnlyFiles, availableCategoryOptions])
 
   // Track previous values for smarter selection reset
   const prevIsOpenRef = useRef(isOpen)
   const prevSearchRef = useRef(debouncedSearchText)
   const prevShowingFilesListRef = useRef(showingFilesList)
-  const prevShowingSkillsListRef = useRef(showingSkillsList)
   const prevShowingAgentsListRef = useRef(showingAgentsList)
   const prevShowingToolsListRef = useRef(showingToolsList)
 
@@ -1003,27 +959,21 @@ export const AgentsFileMention = memo(function AgentsFileMention({
     const didSearchChange = debouncedSearchText !== prevSearchRef.current
     const didSubpageChange =
       showingFilesList !== prevShowingFilesListRef.current ||
-      showingSkillsList !== prevShowingSkillsListRef.current ||
       showingAgentsList !== prevShowingAgentsListRef.current ||
       showingToolsList !== prevShowingToolsListRef.current
 
-    // Reset to 0 when opening, search changes, or subpage changes
     if (didJustOpen || didSearchChange || didSubpageChange) {
       setSelectedIndex(0)
-    }
-    // Clamp to valid range if options shrunk
-    else if (options.length > 0 && selectedIndex >= options.length) {
+    } else if (options.length > 0 && selectedIndex >= options.length) {
       setSelectedIndex(Math.max(0, options.length - 1))
     }
 
-    // Update refs
     prevIsOpenRef.current = isOpen
     prevSearchRef.current = debouncedSearchText
     prevShowingFilesListRef.current = showingFilesList
-    prevShowingSkillsListRef.current = showingSkillsList
     prevShowingAgentsListRef.current = showingAgentsList
     prevShowingToolsListRef.current = showingToolsList
-  }, [isOpen, debouncedSearchText, options.length, selectedIndex, showingFilesList, showingSkillsList, showingAgentsList, showingToolsList])
+  }, [isOpen, debouncedSearchText, options.length, selectedIndex, showingFilesList, showingAgentsList, showingToolsList])
 
   // Reset placement when closed
   useEffect(() => {
@@ -1115,10 +1065,10 @@ export const AgentsFileMention = memo(function AgentsFileMention({
   // Calculate dropdown dimensions (matching canvas style)
   // Narrower dropdown when showing only categories (no changed files)
   const hasChangedFiles = changedFileOptions.length > 0
-  const isRootView = !showingFilesList && !showingSkillsList && !showingAgentsList && !showingToolsList && !hasOnlyFiles
+  const isRootView = !showingFilesList && !showingAgentsList && !showingToolsList && !hasOnlyFiles
   // Narrow dropdown for root view (categories only) and skills/agents/tools subpages
   // Wide dropdown for files (showingFilesList or hasOnlyFiles)
-  const useNarrowWidth = (isRootView && !hasChangedFiles && !debouncedSearchText) || showingSkillsList || showingAgentsList || showingToolsList
+  const useNarrowWidth = (isRootView && !hasChangedFiles && !debouncedSearchText) || showingAgentsList || showingToolsList
   const dropdownWidth = useNarrowWidth ? 200 : 320
   const itemHeight = 28
   const headerHeight = 28 // header with py-1.5 and text-xs
@@ -1227,7 +1177,6 @@ export const AgentsFileMention = memo(function AgentsFileMention({
                   <div className="px-2.5 py-1.5 mx-1 text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                     <span>
                       {(showingFilesList || hasOnlyFiles) ? "Files & Folders" :
-                       showingSkillsList ? "Skills" :
                        showingAgentsList ? "Agents" :
                        showingToolsList ? "MCP Servers" :
                        "Results"}
@@ -1272,12 +1221,12 @@ export const AgentsFileMention = memo(function AgentsFileMention({
                         {(option.additions || option.deletions) && (
                           <span className="shrink-0 flex items-center gap-1 text-[10px] font-mono">
                             {option.additions ? (
-                              <span className="text-green-500">
+                              <span className="text-green-600/40 dark:text-green-500/30">
                                 +{option.additions}
                               </span>
                             ) : null}
                             {option.deletions ? (
-                              <span className="text-red-500">
+                              <span className="text-red-600/40 dark:text-red-500/30">
                                 -{option.deletions}
                               </span>
                             ) : null}

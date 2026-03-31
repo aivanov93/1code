@@ -5,7 +5,7 @@ import { useAtom, useAtomValue, useSetAtom } from "jotai"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ArrowUpRight } from "lucide-react"
-import { DiffIcon } from "@/components/ui/icons"
+import { DiffIcon, IconSpinner } from "@/components/ui/icons"
 import {
   Tooltip,
   TooltipContent,
@@ -29,7 +29,12 @@ import type { ParsedDiffFile } from "../types"
 interface ChangesWidgetProps {
   chatId: string
   worktreePath?: string | null
-  diffStats?: { additions: number; deletions: number; fileCount: number } | null
+  diffStats?: {
+    additions: number
+    deletions: number
+    fileCount: number
+    isLoading?: boolean
+  } | null
   parsedFileDiffs?: ParsedDiffFile[] | null
   onCommit?: (selectedPaths: string[]) => void
   onCommitAndPush?: (selectedPaths: string[]) => void
@@ -92,6 +97,8 @@ export const ChangesWidget = memo(function ChangesWidget({
   const displayFiles = parsedFileDiffs ?? []
   const displayStats = diffStats
 
+  const isLoadingChanges =
+    (displayStats?.isLoading ?? false) || (parsedFileDiffs === null && !!worktreePath)
   const hasChanges = displayStats && displayStats.fileCount > 0
 
   // Get tooltip text based on diff display mode
@@ -276,9 +283,9 @@ export const ChangesWidget = memo(function ChangesWidget({
           {/* Stats in header - total lines changed */}
           {hasChanges && displayStats && (
             <span className="text-xs text-muted-foreground">
-              <span className="text-green-500">+{displayStats.additions}</span>
+              <span className="text-green-600/40 dark:text-green-500/30">+{displayStats.additions}</span>
               {" "}
-              <span className="text-red-500">-{displayStats.deletions}</span>
+              <span className="text-red-600/40 dark:text-red-500/30">-{displayStats.deletions}</span>
             </span>
           )}
 
@@ -308,7 +315,12 @@ export const ChangesWidget = memo(function ChangesWidget({
         </div>
 
         {/* Content */}
-        {hasChanges ? (
+        {isLoadingChanges ? (
+          <div className="flex items-center gap-2 px-2 py-2 text-xs text-muted-foreground">
+            <IconSpinner className="h-3.5 w-3.5" />
+            <span>Loading changes...</span>
+          </div>
+        ) : hasChanges ? (
           <>
             {/* Select all header - like in changes-view */}
             <div className="flex items-center gap-2 px-2 py-1.5 border-b border-border/50">

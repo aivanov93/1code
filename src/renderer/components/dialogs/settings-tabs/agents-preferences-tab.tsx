@@ -6,7 +6,6 @@ import {
   ctrlTabTargetAtom,
   defaultAgentModeAtom,
   desktopNotificationsEnabledAtom,
-  extendedThinkingEnabledAtom,
   notifyWhenFocusedAtom,
   soundNotificationsEnabledAtom,
   preferredEditorAtom,
@@ -14,6 +13,8 @@ import {
   type AutoAdvanceTarget,
   type CtrlTabTarget,
 } from "../../../lib/atoms"
+import { lastSelectedClaudeEffortAtom } from "../../../features/agents/atoms"
+import { formatClaudeEffortLabel, ALL_CLAUDE_EFFORT_LEVELS, type ClaudeEffortLevel } from "../../../features/agents/lib/models"
 import { APP_META, type ExternalApp } from "../../../../shared/external-apps"
 
 // Editor icon imports
@@ -142,9 +143,7 @@ function useIsNarrowScreen(): boolean {
 }
 
 export function AgentsPreferencesTab() {
-  const [thinkingEnabled, setThinkingEnabled] = useAtom(
-    extendedThinkingEnabledAtom,
-  )
+  const [defaultEffort, setDefaultEffort] = useAtom(lastSelectedClaudeEffortAtom)
   const [soundEnabled, setSoundEnabled] = useAtom(soundNotificationsEnabledAtom)
   const [desktopNotificationsEnabled, setDesktopNotificationsEnabled] = useAtom(desktopNotificationsEnabledAtom)
   const [notifyWhenFocused, setNotifyWhenFocused] = useAtom(notifyWhenFocusedAtom)
@@ -197,18 +196,21 @@ export function AgentsPreferencesTab() {
         <div className="flex items-center justify-between p-4">
           <div className="flex flex-col space-y-1">
             <span className="text-sm font-medium text-foreground">
-              Extended Thinking
+              Default Effort Level
             </span>
             <span className="text-xs text-muted-foreground">
-              Enable deeper reasoning with more thinking tokens (uses more
-              credits).{" "}
-              <span className="text-foreground/70">Disables response streaming.</span>
+              Controls reasoning depth for Claude models (higher = more tokens, slower).
             </span>
           </div>
-          <Switch
-            checked={thinkingEnabled}
-            onCheckedChange={setThinkingEnabled}
-          />
+          <select
+            value={defaultEffort}
+            onChange={(e) => setDefaultEffort(e.target.value as ClaudeEffortLevel)}
+            className="rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground"
+          >
+            {ALL_CLAUDE_EFFORT_LEVELS.map((level) => (
+              <option key={level} value={level}>{formatClaudeEffortLabel(level)}</option>
+            ))}
+          </select>
         </div>
         <div className="flex items-center justify-between p-4 border-t border-border">
           <div className="flex flex-col space-y-1">

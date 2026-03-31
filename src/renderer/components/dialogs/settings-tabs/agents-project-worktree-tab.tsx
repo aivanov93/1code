@@ -4,6 +4,7 @@ import { useAtomValue, useSetAtom } from "jotai"
 import { trpc } from "../../../lib/trpc"
 import { Button, buttonVariants } from "../../ui/button"
 import { Input } from "../../ui/input"
+import { Switch } from "../../ui/switch"
 import { Plus, Trash2, FolderOpen } from "lucide-react"
 import { AIPenIcon, ExternalLinkIcon, FolderFilledIcon, ImageIcon } from "../../ui/icons"
 import { invalidateProjectIcon, useProjectIcon } from "../../../lib/hooks/use-project-icon"
@@ -119,6 +120,10 @@ function ProjectDetail({ projectId }: { projectId: string }) {
       refetchProject()
       toast.success("Icon removed")
     },
+  })
+
+  const setSkipGitMutation = trpc.projects.setSkipGitStatus.useMutation({
+    onSuccess: () => refetchProject(),
   })
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -407,6 +412,25 @@ function ProjectDetail({ projectId }: { projectId: string }) {
                 )}
               </div>
             )}
+          </div>
+        </div>
+
+        {/* ── Git ── */}
+        <div>
+          <h4 className="text-sm font-medium text-foreground mb-2">Git</h4>
+          <div className="bg-background rounded-lg border border-border overflow-hidden">
+            <div className="flex items-center justify-between p-4">
+              <div className="flex-1">
+                <span className="text-sm font-medium text-foreground">Track changes</span>
+                <p className="text-sm text-muted-foreground">
+                  Run git status to show file changes in sidebar. Disable for repos where this is slow (e.g. dotfiles on home directory).
+                </p>
+              </div>
+              <Switch
+                checked={!project?.skipGitStatus}
+                onCheckedChange={(checked) => setSkipGitMutation.mutate({ id: projectId, skip: !checked })}
+              />
+            </div>
           </div>
         </div>
 

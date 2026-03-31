@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm"
+import { and, asc, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm"
 import { BrowserWindow } from "electron"
 import * as fs from "fs/promises"
 import * as path from "path"
@@ -11,7 +11,9 @@ import {
   trackWorkspaceCreated,
   trackWorkspaceDeleted,
 } from "../../analytics"
-import { chats, getDatabase, projects, subChats } from "../../db"
+import { chats, getDatabase, projects, subChats, folders } from "../../db"
+import { generateKeyBetween } from "../../db/fractional-index"
+import { UNCATEGORIZED_FOLDER_ID, ARCHIVED_FOLDER_ID } from "../../db/index"
 import {
   createWorktreeForChat,
   fetchGitHubPRStatus,
@@ -19,6 +21,7 @@ import {
   removeWorktree,
   sanitizeProjectName,
 } from "../../git"
+import { shouldSkipGitStatus } from "../../git/status"
 import type { WorktreeSetupResult } from "../../git/worktree-config"
 import { computeContentHash, gitCache } from "../../git/cache"
 import { splitUnifiedDiffByFile } from "../../git/diff-parser"
@@ -135,20 +138,24 @@ Commit message:`
 
 export const chatsRouter = router({
   /**
-   * List all non-archived chats (optionally filter by project)
+   * List all chats (optionally filter by project/folder).
+   * Archived chats live in the system_archived folder; no separate archivedAt filter needed.
    */
   list: publicProcedure
-    .input(z.object({ projectId: z.string().optional() }))
+    .input(z.object({ projectId: z.string().optional(), folderId: z.string().optional() }))
     .query(({ input }) => {
       const db = getDatabase()
-      const conditions = [isNull(chats.archivedAt)]
+      const conditions: ReturnType<typeof eq>[] = []
       if (input.projectId) {
         conditions.push(eq(chats.projectId, input.projectId))
+      }
+      if (input.folderId) {
+        conditions.push(eq(chats.folderId, input.folderId))
       }
       return db
         .select()
         .from(chats)
-        .where(and(...conditions))
+        .where(conditions.length > 0 ? and(...conditions) : undefined)
         .orderBy(desc(chats.updatedAt))
         .all()
     }),
@@ -186,7 +193,7 @@ export const chatsRouter = router({
         .select()
         .from(subChats)
         .where(eq(subChats.chatId, input.id))
-        .orderBy(subChats.createdAt)
+        .orderBy(asc(subChats.position))
         .all()
 
       const project = db
@@ -234,6 +241,7 @@ export const chatsRouter = router({
         branchType: z.enum(["local", "remote"]).optional(), // Whether baseBranch is local or remote
         useWorktree: z.boolean().default(true), // If false, work directly in project dir
         mode: z.enum(["plan", "agent"]).default("agent"),
+        folderId: z.string().optional(), // Target folder (defaults to Uncategorized)
       }),
     )
     .mutation(async ({ input, ctx }) => {
@@ -251,11 +259,14 @@ export const chatsRouter = router({
       if (!project) throw new Error("Project not found")
 
       // Create chat (fast path)
+      const targetFolderId = input.folderId || UNCATEGORIZED_FOLDER_ID
       const chat = db
         .insert(chats)
         .values({
           name: input.name,
           projectId: input.projectId,
+          folderId: targetFolderId,
+          folderPosition: generateKeyBetween(null, null),
         })
         .returning()
         .get()
@@ -286,12 +297,17 @@ export const chatsRouter = router({
         ])
       }
 
+      // Position new sub-chat at top of list
+      const firstSub = db.select().from(subChats).where(eq(subChats.chatId, chat.id))
+        .orderBy(asc(subChats.position)).limit(1).get()
+      const subChatPosition = generateKeyBetween(null, firstSub?.position ?? null)
       const subChat = db
         .insert(subChats)
         .values({
           chatId: chat.id,
           mode: input.mode,
           messages: initialMessages,
+          position: subChatPosition,
         })
         .returning()
         .get()
@@ -430,7 +446,7 @@ export const chatsRouter = router({
       // Archive immediately (optimistic)
       const result = db
         .update(chats)
-        .set({ archivedAt: new Date() })
+        .set({ archivedAt: new Date(), folderId: ARCHIVED_FOLDER_ID })
         .where(eq(chats.id, input.id))
         .returning()
         .get()
@@ -502,7 +518,7 @@ export const chatsRouter = router({
       const db = getDatabase()
       return db
         .update(chats)
-        .set({ archivedAt: null })
+        .set({ archivedAt: null, folderId: UNCATEGORIZED_FOLDER_ID })
         .where(eq(chats.id, input.id))
         .returning()
         .get()
@@ -528,7 +544,7 @@ export const chatsRouter = router({
       // Archive immediately (optimistic)
       const result = db
         .update(chats)
-        .set({ archivedAt: new Date() })
+        .set({ archivedAt: new Date(), folderId: ARCHIVED_FOLDER_ID })
         .where(inArray(chats.id, input.chatIds))
         .returning()
         .all()
@@ -647,6 +663,9 @@ export const chatsRouter = router({
     )
     .mutation(({ input }) => {
       const db = getDatabase()
+      const firstSub = db.select().from(subChats).where(eq(subChats.chatId, input.chatId))
+        .orderBy(asc(subChats.position)).limit(1).get()
+      const position = generateKeyBetween(null, firstSub?.position ?? null)
       return db
         .insert(subChats)
         .values({
@@ -654,6 +673,7 @@ export const chatsRouter = router({
           name: input.name,
           mode: input.mode,
           messages: "[]",
+          position,
         })
         .returning()
         .get()
@@ -746,6 +766,9 @@ export const chatsRouter = router({
       }
 
       // 7. Insert new sub-chat with sessionId from original (needed for resume)
+      const firstForkSub = db.select().from(subChats).where(eq(subChats.chatId, sourceSubChat.chatId))
+        .orderBy(asc(subChats.position)).limit(1).get()
+      const forkPosition = generateKeyBetween(null, firstForkSub?.position ?? null)
       const newSubChat = db
         .insert(subChats)
         .values({
@@ -754,6 +777,7 @@ export const chatsRouter = router({
           mode: sourceSubChat.mode,
           messages: JSON.stringify(forkedMessages),
           sessionId: sourceSubChat.sessionId,
+          position: forkPosition,
         })
         .returning()
         .get()
@@ -952,6 +976,21 @@ export const chatsRouter = router({
       return db
         .update(subChats)
         .set({ name: input.name })
+        .where(eq(subChats.id, input.id))
+        .returning()
+        .get()
+    }),
+
+  /**
+   * Update sub-chat notes
+   */
+  updateSubChatNotes: publicProcedure
+    .input(z.object({ id: z.string(), notes: z.string() }))
+    .mutation(({ input }) => {
+      const db = getDatabase()
+      return db
+        .update(subChats)
+        .set({ notes: input.notes, updatedAt: new Date() })
         .where(eq(subChats.id, input.id))
         .returning()
         .get()
@@ -1322,6 +1361,9 @@ export const chatsRouter = router({
 
       if (!chat?.worktreePath) {
         return null
+      }
+      if (shouldSkipGitStatus(chat.worktreePath)) {
+        return { branch: chat.branch || "unknown", baseBranch: chat.baseBranch || "main", uncommittedCount: 0, hasUpstream: false }
       }
 
       try {
@@ -1733,6 +1775,9 @@ export const chatsRouter = router({
       if (!chat?.worktreePath || !chat?.branch) {
         return { hasWorktree: false, uncommittedCount: 0 }
       }
+      if (shouldSkipGitStatus(chat.worktreePath)) {
+        return { hasWorktree: true, uncommittedCount: 0 }
+      }
 
       try {
         const git = simpleGit(chat.worktreePath)
@@ -1803,7 +1848,7 @@ export const chatsRouter = router({
           .select()
           .from(subChats)
           .where(eq(subChats.chatId, input.chatId))
-          .orderBy(subChats.createdAt)
+          .orderBy(asc(subChats.position))
           .all()
       }
 
@@ -2055,5 +2100,97 @@ export const chatsRouter = router({
         totalOutputTokens,
         subChatCount: chatSubChats.length,
       }
+    }),
+
+  moveToFolder: publicProcedure
+    .input(z.object({
+      chatId: z.string(),
+      folderId: z.string(),
+      afterChatId: z.string().nullable().default(null),
+      beforeChatId: z.string().nullable().default(null),
+    }))
+    .mutation(({ input }) => {
+      const db = getDatabase()
+      let position: string
+      if (input.afterChatId || input.beforeChatId) {
+        const afterChat = input.afterChatId ? db.select().from(chats).where(eq(chats.id, input.afterChatId)).get() : null
+        const beforeChat = input.beforeChatId ? db.select().from(chats).where(eq(chats.id, input.beforeChatId)).get() : null
+        position = generateKeyBetween(afterChat?.folderPosition ?? null, beforeChat?.folderPosition ?? null)
+      } else {
+        // Place at end of target folder
+        const lastChat = db.select().from(chats)
+          .where(eq(chats.folderId, input.folderId))
+          .orderBy(desc(chats.folderPosition)).limit(1).get()
+        position = generateKeyBetween(lastChat?.folderPosition ?? null, null)
+      }
+      return db.update(chats)
+        .set({ folderId: input.folderId, folderPosition: position, archivedAt: null, updatedAt: new Date() })
+        .where(eq(chats.id, input.chatId)).returning().get()
+    }),
+
+  moveBatchToFolder: publicProcedure
+    .input(z.object({ chatIds: z.array(z.string()), folderId: z.string() }))
+    .mutation(({ input }) => {
+      const db = getDatabase()
+      const lastChat = db.select().from(chats)
+        .where(eq(chats.folderId, input.folderId))
+        .orderBy(desc(chats.folderPosition)).limit(1).get()
+      let prev = lastChat?.folderPosition ?? null
+      for (const chatId of input.chatIds) {
+        prev = generateKeyBetween(prev, null)
+        db.update(chats).set({ folderId: input.folderId, folderPosition: prev, archivedAt: null, updatedAt: new Date() })
+          .where(eq(chats.id, chatId)).run()
+      }
+      return { moved: input.chatIds.length }
+    }),
+
+  reorderInFolder: publicProcedure
+    .input(z.object({
+      chatId: z.string(),
+      afterChatId: z.string().nullable(),
+      beforeChatId: z.string().nullable(),
+    }))
+    .mutation(({ input }) => {
+      const db = getDatabase()
+      const afterChat = input.afterChatId ? db.select().from(chats).where(eq(chats.id, input.afterChatId)).get() : null
+      const beforeChat = input.beforeChatId ? db.select().from(chats).where(eq(chats.id, input.beforeChatId)).get() : null
+      const a = afterChat?.folderPosition ?? null
+      const b = beforeChat?.folderPosition ?? null
+      // If both positions are equal (e.g. both "a0"), we can't generate between them.
+      // Fix by first spreading them apart: increment the "before" chat's position.
+      if (a !== null && b !== null && a >= b) {
+        const newB = generateKeyBetween(a, null)
+        db.update(chats).set({ folderPosition: newB }).where(eq(chats.id, input.beforeChatId!)).run()
+        const position = generateKeyBetween(a, newB)
+        return db.update(chats).set({ folderPosition: position, updatedAt: new Date() })
+          .where(eq(chats.id, input.chatId)).returning().get()
+      }
+      const position = generateKeyBetween(a, b)
+      return db.update(chats).set({ folderPosition: position, updatedAt: new Date() })
+        .where(eq(chats.id, input.chatId)).returning().get()
+    }),
+
+  reorderSubChat: publicProcedure
+    .input(z.object({
+      subChatId: z.string(),
+      afterSubChatId: z.string().nullable(),
+      beforeSubChatId: z.string().nullable(),
+    }))
+    .mutation(({ input }) => {
+      const db = getDatabase()
+      const after = input.afterSubChatId ? db.select().from(subChats).where(eq(subChats.id, input.afterSubChatId)).get() : null
+      const before = input.beforeSubChatId ? db.select().from(subChats).where(eq(subChats.id, input.beforeSubChatId)).get() : null
+      const a = after?.position ?? null
+      const b = before?.position ?? null
+      if (a !== null && b !== null && a >= b) {
+        const newB = generateKeyBetween(a, null)
+        db.update(subChats).set({ position: newB }).where(eq(subChats.id, input.beforeSubChatId!)).run()
+        const position = generateKeyBetween(a, newB)
+        return db.update(subChats).set({ position, updatedAt: new Date() })
+          .where(eq(subChats.id, input.subChatId)).returning().get()
+      }
+      const position = generateKeyBetween(a, b)
+      return db.update(subChats).set({ position, updatedAt: new Date() })
+        .where(eq(subChats.id, input.subChatId)).returning().get()
     }),
 })

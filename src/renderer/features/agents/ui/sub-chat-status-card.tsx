@@ -191,10 +191,10 @@ export const SubChatStatusCard = memo(function SubChatStatusCard({
               {(totals.additions > 0 || totals.deletions > 0) && (
                 <>
                   {" "}
-                  <span className="text-green-600 dark:text-green-400">
+                  <span className="text-green-600/40 dark:text-green-500/30">
                     +{totals.additions}
                   </span>{" "}
-                  <span className="text-red-600 dark:text-red-400">
+                  <span className="text-red-600/40 dark:text-red-500/30">
                     -{totals.deletions}
                   </span>
                 </>
@@ -285,10 +285,10 @@ export const SubChatStatusCard = memo(function SubChatStatusCard({
                     <span className="truncate flex-1 text-foreground">
                       {file.displayPath}
                     </span>
-                    <span className="flex-shrink-0 text-green-600 dark:text-green-400">
+                    <span className="flex-shrink-0 text-green-600/40 dark:text-green-500/30">
                       +{file.additions}
                     </span>
-                    <span className="flex-shrink-0 text-red-600 dark:text-red-400">
+                    <span className="flex-shrink-0 text-red-600/40 dark:text-red-500/30">
                       -{file.deletions}
                     </span>
                   </div>

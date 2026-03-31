@@ -6,6 +6,14 @@ import { SerializeAddon } from "@xterm/addon-serialize"
 import { WebLinksAddon } from "@xterm/addon-web-links"
 import type { ITheme } from "xterm"
 import { TERMINAL_OPTIONS, TERMINAL_THEME_DARK, TERMINAL_THEME_LIGHT, getTerminalTheme, RESIZE_DEBOUNCE_MS } from "./config"
+
+/** Guard: xterm's FitAddon accesses _renderService.dimensions without optional chaining.
+ *  If the render service isn't ready yet (race during mount/unmount), fit() throws. */
+function safeFit(fitAddon: FitAddon, xterm: XTerm): void {
+  const core = (xterm as unknown as { _core?: { _renderService?: unknown } })._core
+  if (!core?._renderService) return
+  fitAddon.fit()
+}
 import { FilePathLinkProvider } from "./link-providers"
 import { isMac, isModifierPressed, showLinkPopup, removeLinkPopup } from "./link-providers/link-popup"
 import { suppressQueryResponses } from "./suppressQueryResponses"
@@ -111,9 +119,14 @@ export function createTerminalInstance(
   console.log("[Terminal:create] Step 2: Opening in DOM")
   xterm.open(container)
 
-  // Debug: Check _renderService after open
-  const core = (xterm as unknown as { _core?: { _renderService?: unknown } })._core
-  console.log("[Terminal:create] After open - _renderService exists:", !!core?._renderService)
+  // Guard: xterm's Viewport._innerRefresh accesses _renderService.dimensions
+  // without checking if the service exists. During WebGL/Canvas renderer swap
+  // a queued rAF can fire and crash. Patch _innerRefresh to swallow that.
+  const core = (xterm as unknown as { _core?: { _viewport?: { _innerRefresh?: () => void } } })._core
+  if (core?._viewport?._innerRefresh) {
+    const orig = core._viewport._innerRefresh.bind(core._viewport)
+    core._viewport._innerRefresh = () => { try { orig() } catch {} }
+  }
 
   // 3. Load fit addon
   console.log("[Terminal:create] Step 3: Loading FitAddon")
@@ -128,10 +141,6 @@ export function createTerminalInstance(
   // 5. Load GPU-accelerated renderer
   console.log("[Terminal:create] Step 5: Loading renderer")
   const renderer = loadRenderer(xterm)
-
-  // Debug: Check dimensions after renderer
-  const coreAfter = (xterm as unknown as { _core?: { _renderService?: { dimensions?: unknown } } })._core
-  console.log("[Terminal:create] After renderer - dimensions:", coreAfter?._renderService?.dimensions)
 
   // 6. Set up query response suppression
   console.log("[Terminal:create] Step 6: Setting up query suppression")
@@ -174,12 +183,8 @@ export function createTerminalInstance(
 
   // 9. Fit to get actual dimensions
   console.log("[Terminal:create] Step 9: Fitting terminal")
-  try {
-    fitAddon.fit()
-    console.log("[Terminal:create] Fit successful - cols:", xterm.cols, "rows:", xterm.rows)
-  } catch (err) {
-    console.log("[Terminal:create] Fit failed:", err)
-  }
+  safeFit(fitAddon, xterm)
+  console.log("[Terminal:create] Fit result - cols:", xterm.cols, "rows:", xterm.rows)
 
   console.log("[Terminal:create] Complete!")
 
@@ -332,12 +337,8 @@ export function setupResizeHandlers(
   onResize: (cols: number, rows: number) => void
 ): () => void {
   const debouncedHandleResize = debounce(() => {
-    try {
-      fitAddon.fit()
-      onResize(xterm.cols, xterm.rows)
-    } catch {
-      // Ignore resize errors
-    }
+    safeFit(fitAddon, xterm)
+    onResize(xterm.cols, xterm.rows)
   }, RESIZE_DEBOUNCE_MS)
 
   const resizeObserver = new ResizeObserver(debouncedHandleResize)

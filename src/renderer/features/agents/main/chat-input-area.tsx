@@ -40,10 +40,10 @@ import {
 import {
   agentsSettingsDialogActiveTabAtom,
   agentsSettingsDialogOpenAtom,
-  extendedThinkingEnabledAtom,
   selectedOllamaModelAtom,
   showOfflineModeFeaturesAtom,
 } from "../../../lib/atoms"
+import { appStore } from "../../../lib/jotai-store"
 import { trpc } from "../../../lib/trpc"
 import { cn } from "../../../lib/utils"
 import {
@@ -54,6 +54,9 @@ import {
   lastSelectedModelIdAtom,
   subChatCodexModelIdAtomFamily,
   subChatCodexThinkingAtomFamily,
+  subChatClaudeEffortAtomFamily,
+  lastSelectedClaudeEffortAtom,
+  subChatCodexThinkingStorageAtom,
   subChatModelIdAtomFamily,
   subChatModeAtomFamily,
   getNextMode,
@@ -82,6 +85,7 @@ import {
   type AgentsMentionsEditorHandle,
   type FileMentionOption,
 } from "../mentions"
+import { AgentsSkillMention } from "../mentions/agents-skill-mention"
 import { AgentContextIndicator, type MessageTokenData } from "../ui/agent-context-indicator"
 import { AgentDiffTextContextItem } from "../ui/agent-diff-text-context-item"
 import { AgentFileItem } from "../ui/agent-file-item"
@@ -475,9 +479,13 @@ export const ChatInputArea = memo(function ChatInputArea({
 
   // Mention dropdown subpage navigation state
   const [showingFilesList, setShowingFilesList] = useState(false)
-  const [showingSkillsList, setShowingSkillsList] = useState(false)
   const [showingAgentsList, setShowingAgentsList] = useState(false)
   const [showingToolsList, setShowingToolsList] = useState(false)
+
+  // $ skill dropdown state
+  const [showSkillDropdown, setShowSkillDropdown] = useState(false)
+  const [skillSearchText, setSkillSearchText] = useState("")
+  const [skillPosition, setSkillPosition] = useState({ top: 0, left: 0 })
 
   // Slash command dropdown state
   const [showSlashDropdown, setShowSlashDropdown] = useState(false)
@@ -615,18 +623,27 @@ export const ChatInputArea = memo(function ChatInputArea({
     setSelectedSubChatCodexThinking,
   ])
 
-  // Materialize resolved Codex model/thinking into per-subChat storage once mounted.
-  // This prevents later global default changes from affecting existing sub-chats.
+  // Materialize resolved Codex model into per-subChat storage once mounted.
+  // For thinking: only write if sub-chat has no explicit value yet, using the
+  // model's configured default (not the global "last selected" atom).
   useEffect(() => {
     if (provider !== "codex") return
     if (selectedCodexModel?.slug) {
       setSelectedSubChatCodexModelId(selectedCodexModel.slug)
     }
-    setSelectedSubChatCodexThinking(selectedCodexThinking)
+    const storage = appStore.get(subChatCodexThinkingStorageAtom)
+    const hasExplicit = subChatId in storage
+    const modelDefault = selectedCodexModel?.defaultThinking
+    console.log(`[chat-input] materialize thinking`, { subChatId: subChatId.slice(-8), hasExplicit, existing: storage[subChatId], modelDefault, provider })
+    if (!hasExplicit) {
+      setSelectedSubChatCodexThinking(
+        normalizeCodexThinkingSelection(selectedCodexModel, modelDefault),
+      )
+    }
   }, [
     provider,
-    selectedCodexModel?.slug,
-    selectedCodexThinking,
+    subChatId,
+    selectedCodexModel,
     setSelectedSubChatCodexModelId,
     setSelectedSubChatCodexThinking,
   ])
@@ -640,8 +657,9 @@ export const ChatInputArea = memo(function ChatInputArea({
     }
   }, [selectedOllamaModel, currentOllamaModel, availableModels.isOffline])
 
-  // Extended thinking (reasoning) toggle
-  const [thinkingEnabled, setThinkingEnabled] = useAtom(extendedThinkingEnabledAtom)
+  // Claude effort level (reasoning effort)
+  const [selectedEffort, setSelectedEffort] = useAtom(subChatClaudeEffortAtomFamily(subChatId))
+  const setLastSelectedClaudeEffort = useSetAtom(lastSelectedClaudeEffortAtom)
 
   const selectedModelLabel = useMemo(() => {
     if (provider === "codex") {
@@ -1045,10 +1063,6 @@ export const ChatInputArea = memo(function ChatInputArea({
         setShowingFilesList(true)
         return
       }
-      if (mention.id === "skills") {
-        setShowingSkillsList(true)
-        return
-      }
       if (mention.id === "agents") {
         setShowingAgentsList(true)
         return
@@ -1064,7 +1078,6 @@ export const ChatInputArea = memo(function ChatInputArea({
     setShowMentionDropdown(false)
     // Reset subpage state
     setShowingFilesList(false)
-    setShowingSkillsList(false)
     setShowingAgentsList(false)
     setShowingToolsList(false)
   }, [editorRef])
@@ -1442,19 +1455,23 @@ export const ChatInputArea = memo(function ChatInputArea({
                   }}
                   onCloseTrigger={() => {
                     setShowMentionDropdown(false)
-                    // Reset subpage state when closing
                     setShowingFilesList(false)
-                    setShowingSkillsList(false)
                     setShowingAgentsList(false)
                     setShowingToolsList(false)
                   }}
+                  onDollarTrigger={({ searchText, rect }) => {
+                    setSkillSearchText(searchText)
+                    setSkillPosition({ top: rect.top, left: rect.left })
+                    setShowSkillDropdown(true)
+                  }}
+                  onCloseDollarTrigger={() => setShowSkillDropdown(false)}
                   onSlashTrigger={handleSlashTrigger}
                   onCloseSlashTrigger={handleCloseSlashTrigger}
                   onContentChange={handleContentChange}
                   onSubmit={onSubmitWithQuestionAnswer || handleEditorSubmit}
                   onForceSubmit={onForceSend}
                   onShiftTab={toggleMode}
-                  placeholder={isStreaming ? "Add to the queue" : "Plan, @ for context, / for commands"}
+                  placeholder={isStreaming ? "Add to the queue" : "Plan, @ context, $ skills, / commands"}
                   className={cn(
                     "bg-transparent max-h-[200px] overflow-y-auto p-1",
                     isMobile && "min-h-[56px]",
@@ -1668,8 +1685,11 @@ export const ChatInputArea = memo(function ChatInputArea({
                         selectedOllamaModel: currentOllamaModel,
                         recommendedOllamaModel: availableModels.recommendedModel,
                         onSelectOllamaModel: setSelectedOllamaModel,
-                        thinkingEnabled,
-                        onThinkingChange: setThinkingEnabled,
+                        effort: selectedEffort,
+                        onEffortChange: (effort) => {
+                          setSelectedEffort(effort)
+                          setLastSelectedClaudeEffort(effort)
+                        },
                       }}
                       codex={{
                         models: codexModels,
@@ -1810,9 +1830,7 @@ export const ChatInputArea = memo(function ChatInputArea({
         }
         onClose={() => {
           setShowMentionDropdown(false)
-          // Reset subpage state when closing
           setShowingFilesList(false)
-          setShowingSkillsList(false)
           setShowingAgentsList(false)
           setShowingToolsList(false)
         }}
@@ -1824,11 +1842,22 @@ export const ChatInputArea = memo(function ChatInputArea({
         sandboxId={sandboxId}
         projectPath={projectPath}
         changedFiles={changedFiles}
-        // Subpage navigation state
         showingFilesList={showingFilesList}
-        showingSkillsList={showingSkillsList}
         showingAgentsList={showingAgentsList}
         showingToolsList={showingToolsList}
+      />
+
+      {/* Skills dropdown ($ trigger) */}
+      <AgentsSkillMention
+        isOpen={showSkillDropdown}
+        onClose={() => setShowSkillDropdown(false)}
+        onSelect={(mention) => {
+          editorRef.current?.insertMention(mention)
+          setShowSkillDropdown(false)
+        }}
+        searchText={skillSearchText}
+        position={skillPosition}
+        projectPath={projectPath}
       />
 
       {/* Slash command dropdown */}

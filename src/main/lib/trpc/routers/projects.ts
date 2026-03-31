@@ -42,6 +42,13 @@ export const projectsRouter = router({
       return db.select().from(projects).where(eq(projects.id, input.id)).get()
     }),
 
+  getByPath: publicProcedure
+    .input(z.object({ path: z.string() }))
+    .query(({ input }) => {
+      const db = getDatabase()
+      return db.select().from(projects).where(eq(projects.path, input.path)).get()
+    }),
+
   /**
    * Open folder picker and create project
    */
@@ -180,6 +187,18 @@ export const projectsRouter = router({
       return db
         .update(projects)
         .set({ name: input.name, updatedAt: new Date() })
+        .where(eq(projects.id, input.id))
+        .returning()
+        .get()
+    }),
+
+  setSkipGitStatus: publicProcedure
+    .input(z.object({ id: z.string(), skip: z.boolean() }))
+    .mutation(({ input }) => {
+      const db = getDatabase()
+      return db
+        .update(projects)
+        .set({ skipGitStatus: input.skip, updatedAt: new Date() })
         .where(eq(projects.id, input.id))
         .returning()
         .get()

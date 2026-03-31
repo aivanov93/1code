@@ -47,8 +47,6 @@ import {
   IconDoubleChevronLeft,
   IconSpinner,
   LoadingDot,
-  PlanIcon,
-  AgentIcon,
   IconOpenSidebar,
   ClockIcon,
   QuestionIcon,
@@ -61,7 +59,6 @@ import {
 import { Kbd } from "../../components/ui/kbd"
 import { isDesktopApp, getShortcutKey } from "../../lib/utils/platform"
 import { useResolvedHotkeyDisplay } from "../../lib/hotkeys"
-import { TrafficLightSpacer } from "../agents/components/traffic-light-spacer"
 import { PopoverTrigger } from "../../components/ui/popover"
 import { AlignJustify } from "lucide-react"
 import {
@@ -173,22 +170,17 @@ const SidebarSearchHistoryPopover = memo(function SidebarSearchHistoryPopover({
 
     return (
       <div className="flex items-center gap-2 flex-1 min-w-0">
-        <div className="flex-shrink-0 w-4 h-4 flex items-center justify-center relative">
-          {hasPendingQuestion ? (
-            <QuestionIcon className="w-4 h-4 text-blue-500" />
-          ) : isLoading ? (
-            <IconSpinner className="w-4 h-4 text-muted-foreground" />
-          ) : mode === "plan" ? (
-            <PlanIcon className="w-4 h-4 text-muted-foreground" />
-          ) : (
-            <AgentIcon className="w-4 h-4 text-muted-foreground" />
-          )}
-          {hasUnseen && !isLoading && !hasPendingQuestion && (
-            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-popover flex items-center justify-center">
-              <div className="w-1.5 h-1.5 rounded-full bg-[#307BD0]" />
-            </div>
-          )}
-        </div>
+        {(hasPendingQuestion || isLoading || hasUnseen) && (
+          <div className="flex-shrink-0 w-4 h-4 flex items-center justify-center">
+            {hasPendingQuestion ? (
+              <QuestionIcon className="w-4 h-4 text-blue-500" />
+            ) : isLoading ? (
+              <IconSpinner className="w-4 h-4 text-muted-foreground" />
+            ) : (
+              <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
+            )}
+          </div>
+        )}
         <span className="text-sm truncate flex-1">
           {subChat.name || "New Chat"}
         </span>
@@ -290,6 +282,8 @@ export function AgentsSubChatsSidebar({
   )
 
   const utils = trpc.useUtils()
+
+
 
   // SubChat name tooltip - using refs instead of state to avoid re-renders on hover
   // Declared here so they can be used in archive mutation's onSuccess
@@ -399,7 +393,7 @@ export function AgentsSubChatsSidebar({
       .sort((a, b) => {
         const aT = new Date(a.updated_at || a.created_at || "0").getTime()
         const bT = new Date(b.updated_at || b.created_at || "0").getTime()
-        return bT - aT // Most recent first
+        return bT - aT
       })
 
     if (splitPaneIds.length < 2) return chats
@@ -598,6 +592,20 @@ export function AgentsSubChatsSidebar({
     [openSubChats.length, allSubChats, parentChatId, setUndoStack],
   )
 
+  const deleteSubChatMutation = trpc.chats.deleteSubChat.useMutation({
+    onSuccess: () => { utils.chats.listSubChats.invalidate() },
+  })
+
+  const handleDeleteSubChat = useCallback(
+    (subChatId: string) => {
+      // Remove from open tabs
+      useAgentSubChatStore.getState().removeFromOpenSubChats(subChatId)
+      // Delete from DB
+      deleteSubChatMutation.mutate({ id: subChatId })
+    },
+    [deleteSubChatMutation],
+  )
+
   const handleConfirmArchiveAgent = useCallback(() => {
     if (parentChatId) {
       // Archive the parent agent chat
@@ -650,55 +658,6 @@ export function AgentsSubChatsSidebar({
       tooltip.style.display = "none"
     }
   }, [])
-
-  const handleArchiveAllBelow = useCallback(
-    (subChatId: string) => {
-      const currentIndex = filteredSubChats.findIndex((c) => c.id === subChatId)
-      if (currentIndex === -1 || currentIndex === filteredSubChats.length - 1)
-        return
-
-      const state = useAgentSubChatStore.getState()
-      const idsToClose = filteredSubChats
-        .slice(currentIndex + 1)
-        .map((c) => c.id)
-
-      idsToClose.forEach((id) => state.removeFromOpenSubChats(id))
-
-      // Add each to unified undo stack for Cmd+Z
-      if (parentChatId) {
-        const newItems: UndoItem[] = idsToClose.map((id) => {
-          const timeoutId = setTimeout(() => {
-            setUndoStack((prev) => prev.filter(
-              (item) => !(item.type === "subchat" && item.subChatId === id)
-            ))
-          }, 10000)
-          return { type: "subchat" as const, subChatId: id, chatId: parentChatId, timeoutId }
-        })
-        setUndoStack((prev) => [...prev, ...newItems])
-      }
-    },
-    [filteredSubChats, parentChatId, setUndoStack],
-  )
-
-  const onCloseOtherChats = useCallback((subChatId: string) => {
-    const state = useAgentSubChatStore.getState()
-    const idsToClose = state.openSubChatIds.filter((id) => id !== subChatId)
-    idsToClose.forEach((id) => state.removeFromOpenSubChats(id))
-    state.setActiveSubChat(subChatId)
-
-    // Add each to unified undo stack for Cmd+Z
-    if (parentChatId) {
-      const newItems: UndoItem[] = idsToClose.map((id) => {
-        const timeoutId = setTimeout(() => {
-          setUndoStack((prev) => prev.filter(
-            (item) => !(item.type === "subchat" && item.subChatId === id)
-          ))
-        }, 10000)
-        return { type: "subchat" as const, subChatId: id, chatId: parentChatId, timeoutId }
-      })
-      setUndoStack((prev) => [...prev, ...newItems])
-    }
-  }, [parentChatId, setUndoStack])
 
   const renameMutation = api.agents.renameSubChat.useMutation({
     // Store is updated optimistically in handleSaveSubChatRename
@@ -1098,32 +1057,45 @@ export function AgentsSubChatsSidebar({
         />
       )}
 
-      {/* Spacer for macOS traffic lights - only when agents sidebar is open */}
-      {isSidebarOpen && (
-        <TrafficLightSpacer isDesktop={isDesktop} isFullscreen={isFullscreen} />
-      )}
-
-      {/* Header buttons - absolutely positioned when agents sidebar is open */}
-      {isSidebarOpen && (
-        <div
-          className="absolute right-2 top-2 z-20"
-          style={{
-            // @ts-expect-error - WebKit-specific property
-            WebkitAppRegion: "no-drag",
-          }}
-        >
-          {headerButtons}
-        </div>
-      )}
-
-      {/* Header */}
-      <div className="p-2 pb-3 flex-shrink-0 relative z-10">
-        <div className="space-y-2">
-          {/* Top row - different layout based on agents sidebar state */}
-          {isSidebarOpen ? (
-            <div className="h-6" />
-          ) : (
-            <div className="flex items-center justify-between gap-1 mb-1">
+      {/* Header row: search inline with action buttons */}
+      <div
+        className="relative z-10 flex-shrink-0"
+        style={{
+          // @ts-expect-error - WebKit-specific property
+          WebkitAppRegion: "no-drag",
+        }}
+      >
+        {isSidebarOpen ? (
+          /* When agents sidebar is open: single row with search + clock + close */
+          <div className="flex items-center gap-1 pt-2 pb-1.5 px-2">
+            <div className="flex-1 min-w-0">
+              <Input
+                ref={searchInputRef}
+                placeholder="Search chats..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") { e.preventDefault(); searchInputRef.current?.blur(); setFocusedChatIndex(-1); return }
+                  if (e.key === "ArrowDown") { e.preventDefault(); setFocusedChatIndex((prev) => prev === -1 ? 0 : prev < filteredSubChats.length - 1 ? prev + 1 : prev); return }
+                  if (e.key === "ArrowUp") { e.preventDefault(); setFocusedChatIndex((prev) => prev === -1 ? filteredSubChats.length - 1 : prev > 0 ? prev - 1 : prev); return }
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    if (focusedChatIndex >= 0) {
+                      const focusedChat = filteredSubChats[focusedChatIndex]
+                      if (focusedChat) { handleSubChatClick(focusedChat.id); searchInputRef.current?.blur(); setFocusedChatIndex(-1) }
+                    }
+                    return
+                  }
+                }}
+                className="h-7 w-full rounded-lg text-sm bg-muted border border-input placeholder:text-muted-foreground/40"
+              />
+            </div>
+            {headerButtons}
+          </div>
+        ) : (
+          /* When agents sidebar is collapsed: back button row + search below */
+          <div className="p-2 pb-0 space-y-2">
+            <div className="flex items-center justify-between gap-1">
               {onBackToChats && (
                 <Tooltip delayDuration={500}>
                   <TooltipTrigger asChild>
@@ -1134,10 +1106,6 @@ export function AgentsSubChatsSidebar({
                       tabIndex={-1}
                       className="h-6 w-6 p-0 hover:bg-foreground/10 transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] flex-shrink-0 rounded-md"
                       aria-label="Toggle agents sidebar"
-                      style={{
-                        // @ts-expect-error - WebKit-specific property
-                        WebkitAppRegion: "no-drag",
-                      }}
                     >
                       <AlignJustify className="h-4 w-4" />
                     </Button>
@@ -1146,64 +1114,22 @@ export function AgentsSubChatsSidebar({
                 </Tooltip>
               )}
               <div className="flex-1" />
-              <div
-                style={{
-                  // @ts-expect-error - WebKit-specific property
-                  WebkitAppRegion: "no-drag",
-                }}
-              >
-                {headerButtons}
-              </div>
+              {headerButtons}
             </div>
-          )}
-          {/* Search Input */}
-          <div
-            className="relative"
-            style={{
-              // @ts-expect-error - WebKit-specific property
-              WebkitAppRegion: "no-drag",
-            }}
-          >
             <Input
               ref={searchInputRef}
               placeholder="Search chats..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Escape") {
-                  e.preventDefault()
-                  searchInputRef.current?.blur()
-                  setFocusedChatIndex(-1)
-                  return
-                }
-
-                if (e.key === "ArrowDown") {
-                  e.preventDefault()
-                  setFocusedChatIndex((prev) => {
-                    if (prev === -1) return 0
-                    return prev < filteredSubChats.length - 1 ? prev + 1 : prev
-                  })
-                  return
-                }
-
-                if (e.key === "ArrowUp") {
-                  e.preventDefault()
-                  setFocusedChatIndex((prev) => {
-                    if (prev === -1) return filteredSubChats.length - 1
-                    return prev > 0 ? prev - 1 : prev
-                  })
-                  return
-                }
-
+                if (e.key === "Escape") { e.preventDefault(); searchInputRef.current?.blur(); setFocusedChatIndex(-1); return }
+                if (e.key === "ArrowDown") { e.preventDefault(); setFocusedChatIndex((prev) => prev === -1 ? 0 : prev < filteredSubChats.length - 1 ? prev + 1 : prev); return }
+                if (e.key === "ArrowUp") { e.preventDefault(); setFocusedChatIndex((prev) => prev === -1 ? filteredSubChats.length - 1 : prev > 0 ? prev - 1 : prev); return }
                 if (e.key === "Enter") {
                   e.preventDefault()
                   if (focusedChatIndex >= 0) {
                     const focusedChat = filteredSubChats[focusedChatIndex]
-                    if (focusedChat) {
-                      handleSubChatClick(focusedChat.id)
-                      searchInputRef.current?.blur()
-                      setFocusedChatIndex(-1)
-                    }
+                    if (focusedChat) { handleSubChatClick(focusedChat.id); searchInputRef.current?.blur(); setFocusedChatIndex(-1) }
                   }
                   return
                 }
@@ -1211,31 +1137,33 @@ export function AgentsSubChatsSidebar({
               className="h-7 w-full rounded-lg text-sm bg-muted border border-input placeholder:text-muted-foreground/40"
             />
           </div>
-          {/* New Chat Button */}
-          <div
-            style={{
-              // @ts-expect-error - WebKit-specific property
-              WebkitAppRegion: "no-drag",
-            }}
-          >
-            <Tooltip delayDuration={500}>
-              <TooltipTrigger asChild>
-                <Button
-                  onClick={handleCreateNew}
-                  variant="outline"
-                  size="sm"
-                  className="h-7 px-2 w-full hover:bg-foreground/10 transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] text-foreground rounded-lg"
-                >
-                  <span className="text-sm font-medium">New Chat</span>
-                </Button>
-              </TooltipTrigger>
-            <TooltipContent side="right">
-              Create a new chat
-              {newAgentHotkey && <Kbd>{newAgentHotkey}</Kbd>}
-            </TooltipContent>
-          </Tooltip>
-          </div>
-        </div>
+        )}
+      </div>
+
+      {/* New Chat Button */}
+      <div
+        className="px-2 pb-1 flex-shrink-0 relative z-10"
+        style={{
+          // @ts-expect-error - WebKit-specific property
+          WebkitAppRegion: "no-drag",
+        }}
+      >
+        <Tooltip delayDuration={500}>
+          <TooltipTrigger asChild>
+            <Button
+              onClick={handleCreateNew}
+              variant="outline"
+              size="sm"
+              className="h-7 px-2 w-full hover:bg-foreground/10 transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] text-foreground rounded-lg"
+            >
+              <span className="text-sm font-medium">New Chat</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            Create a new chat
+            {newAgentHotkey && <Kbd>{newAgentHotkey}</Kbd>}
+          </TooltipContent>
+        </Tooltip>
       </div>
 
       {/* Scrollable Sub-Chats List */}
@@ -1380,7 +1308,7 @@ export function AgentsSubChatsSidebar({
                                     handleSubChatMouseLeave()
                                   }}
                                   className={cn(
-                                    "w-full text-left py-1.5 transition-colors duration-75 cursor-pointer group relative",
+                                    "w-full text-left py-1 transition-colors duration-75 cursor-pointer group relative",
                                     "outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70",
                                     isMultiSelectMode ? "px-3" : "pl-2 pr-2",
                                     isMultiSelectMode ? "" : "rounded-md",
@@ -1397,66 +1325,26 @@ export function AgentsSubChatsSidebar({
                                     isSplitTab && !isMultiSelectMode && hasSplitNext && "rounded-b-none",
                                   )}
                                 >
-                                  <div className="flex items-start gap-2.5">
-                                    {/* Icon/Checkbox container */}
-                                    <div className="pt-0.5 flex-shrink-0 w-4 h-4 flex items-center justify-center relative">
-                                      {/* Checkbox - shown in multi-select mode */}
-                                      <div
-                                        className={cn(
-                                          "absolute inset-0 flex items-center justify-center transition-[opacity,transform] duration-150 ease-out",
-                                          isMultiSelectMode
-                                            ? "opacity-100 scale-100"
-                                            : "opacity-0 scale-95 pointer-events-none",
-                                        )}
-                                        onClick={(e) =>
-                                          handleCheckboxClick(e, subChat.id)
-                                        }
-                                      >
-                                        <Checkbox
-                                          checked={isChecked}
-                                          className="cursor-pointer h-4 w-4"
-                                          tabIndex={isMultiSelectMode ? 0 : -1}
-                                        />
+                                  <div className="flex items-start gap-1.5">
+                                    {/* Checkbox in multi-select, status dot otherwise */}
+                                    {isMultiSelectMode ? (
+                                      <div className="pt-0.5 flex-shrink-0 w-4 h-4 flex items-center justify-center"
+                                        onClick={(e) => handleCheckboxClick(e, subChat.id)}>
+                                        <Checkbox checked={isChecked} className="cursor-pointer h-4 w-4" tabIndex={0} />
                                       </div>
-                                      {/* Mode icon or Question icon - hidden in multi-select mode */}
-                                      <div
-                                        className={cn(
-                                          "transition-[opacity,transform] duration-150 ease-out",
-                                          isMultiSelectMode
-                                            ? "opacity-0 scale-95 pointer-events-none"
-                                            : "opacity-100 scale-100",
-                                        )}
-                                      >
+                                    ) : (hasPendingQuestion || isSubChatLoading || hasPendingPlan || hasUnseen) ? (
+                                      <div className="pt-1 flex-shrink-0 flex items-center justify-center w-4 h-4">
                                         {hasPendingQuestion ? (
-                                          <QuestionIcon className="w-4 h-4 text-blue-500" />
-                                        ) : mode === "plan" ? (
-                                          <PlanIcon className="w-4 h-4 text-muted-foreground" />
+                                          <QuestionIcon className="w-3.5 h-3.5 text-blue-500" />
+                                        ) : isSubChatLoading ? (
+                                          <LoadingDot isLoading={true} className="w-3.5 h-3.5 text-muted-foreground" />
+                                        ) : hasPendingPlan ? (
+                                          <div className="w-2 h-2 rounded-full bg-amber-500" />
                                         ) : (
-                                          <AgentIcon className="w-4 h-4 text-muted-foreground" />
+                                          <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
                                         )}
                                       </div>
-                                      {/* Badge in bottom-right corner - hidden in multi-select mode and when pending question */}
-                                      {(isSubChatLoading || hasUnseen || hasPendingPlan) &&
-                                        !isMultiSelectMode && !hasPendingQuestion && (
-                                          <div
-                                            className={cn(
-                                              "absolute -bottom-1 -right-1 w-3 h-3 rounded-full flex items-center justify-center",
-                                              isActive
-                                                ? "bg-[#E8E8E8] dark:bg-[#1B1B1B]"
-                                                : "bg-[#F4F4F4] group-hover:bg-[#E8E8E8] dark:bg-[#101010] dark:group-hover:bg-[#1B1B1B]",
-                                            )}
-                                          >
-                                            {/* Priority: loader > amber dot (pending plan) > blue dot (unseen) */}
-                                            {isSubChatLoading ? (
-                                              <LoadingDot isLoading={true} className="w-2.5 h-2.5 text-muted-foreground" />
-                                            ) : hasPendingPlan ? (
-                                              <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                                            ) : (
-                                              <LoadingDot isLoading={false} className="w-2.5 h-2.5 text-muted-foreground" />
-                                            )}
-                                          </div>
-                                        )}
-                                    </div>
+                                    ) : null}
                                     <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                                       <div className="flex items-center gap-1">
                                         {editingSubChatId === subChat.id ? (
@@ -1524,10 +1412,10 @@ export function AgentsSubChatsSidebar({
                                         <div className="flex items-center gap-1.5 flex-shrink-0">
                                           {!draftText && stats && (stats.additions > 0 || stats.deletions > 0) && (
                                             <>
-                                              <span className="text-green-600 dark:text-green-400">
+                                              <span className="text-green-600/40 dark:text-green-500/30">
                                                 +{stats.additions}
                                               </span>
-                                              <span className="text-red-600 dark:text-red-400">
+                                              <span className="text-red-600/40 dark:text-red-500/30">
                                                 -{stats.deletions}
                                               </span>
                                             </>
@@ -1571,8 +1459,9 @@ export function AgentsSubChatsSidebar({
                                   onTogglePin={togglePinSubChat}
                                   onRename={handleRenameClick}
                                   onArchive={handleArchiveSubChat}
-                                  onArchiveAllBelow={handleArchiveAllBelow}
-                                  onArchiveOthers={onCloseOtherChats}
+                                  onDelete={handleDeleteSubChat}
+                                  canMoveUp={false}
+                                  canMoveDown={false}
                                   isOnlyChat={openSubChats.length === 1}
                                   currentIndex={globalIndex}
                                   totalCount={filteredSubChats.length}
@@ -1595,16 +1484,18 @@ export function AgentsSubChatsSidebar({
                   {/* Unpinned section */}
                   {unpinnedChats.length > 0 && (
                     <>
-                      <div
-                        className={cn(
-                          "flex items-center h-4 mb-1",
-                          isMultiSelectMode ? "pl-3" : "pl-2",
-                        )}
-                      >
-                        <h3 className="text-xs font-medium text-muted-foreground whitespace-nowrap">
-                          {pinnedChats.length > 0 ? "Recent chats" : "Chats"}
-                        </h3>
-                      </div>
+                      {pinnedChats.length > 0 && (
+                        <div
+                          className={cn(
+                            "flex items-center h-4 mb-1",
+                            isMultiSelectMode ? "pl-3" : "pl-2",
+                          )}
+                        >
+                          <h3 className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+                            Recent chats
+                          </h3>
+                        </div>
+                      )}
                       <div className="list-none p-0 m-0">
                         {unpinnedChats.map((subChat) => {
                           const isSubChatLoading = loadingChatIds.has(
@@ -1696,7 +1587,7 @@ export function AgentsSubChatsSidebar({
                                     handleSubChatMouseLeave()
                                   }}
                                   className={cn(
-                                    "w-full text-left py-1.5 transition-colors duration-75 cursor-pointer group relative",
+                                    "w-full text-left py-1 transition-colors duration-75 cursor-pointer group relative",
                                     "outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70",
                                     isMultiSelectMode ? "px-3" : "pl-2 pr-2",
                                     isMultiSelectMode ? "" : "rounded-md",
@@ -1713,66 +1604,26 @@ export function AgentsSubChatsSidebar({
                                     isSplitTab && !isMultiSelectMode && hasSplitNext && "rounded-b-none",
                                   )}
                                 >
-                                  <div className="flex items-start gap-2.5">
-                                    {/* Icon/Checkbox container */}
-                                    <div className="pt-0.5 flex-shrink-0 w-4 h-4 flex items-center justify-center relative">
-                                      {/* Checkbox - shown in multi-select mode */}
-                                      <div
-                                        className={cn(
-                                          "absolute inset-0 flex items-center justify-center transition-[opacity,transform] duration-150 ease-out",
-                                          isMultiSelectMode
-                                            ? "opacity-100 scale-100"
-                                            : "opacity-0 scale-95 pointer-events-none",
-                                        )}
-                                        onClick={(e) =>
-                                          handleCheckboxClick(e, subChat.id)
-                                        }
-                                      >
-                                        <Checkbox
-                                          checked={isChecked}
-                                          className="cursor-pointer h-4 w-4"
-                                          tabIndex={isMultiSelectMode ? 0 : -1}
-                                        />
+                                  <div className="flex items-start gap-1.5">
+                                    {/* Checkbox in multi-select, status dot otherwise */}
+                                    {isMultiSelectMode ? (
+                                      <div className="pt-0.5 flex-shrink-0 w-4 h-4 flex items-center justify-center"
+                                        onClick={(e) => handleCheckboxClick(e, subChat.id)}>
+                                        <Checkbox checked={isChecked} className="cursor-pointer h-4 w-4" tabIndex={0} />
                                       </div>
-                                      {/* Mode icon or Question icon - hidden in multi-select mode */}
-                                      <div
-                                        className={cn(
-                                          "transition-[opacity,transform] duration-150 ease-out",
-                                          isMultiSelectMode
-                                            ? "opacity-0 scale-95 pointer-events-none"
-                                            : "opacity-100 scale-100",
-                                        )}
-                                      >
+                                    ) : (hasPendingQuestion || isSubChatLoading || hasPendingPlan || hasUnseen) ? (
+                                      <div className="pt-1 flex-shrink-0 flex items-center justify-center w-4 h-4">
                                         {hasPendingQuestion ? (
-                                          <QuestionIcon className="w-4 h-4 text-blue-500" />
-                                        ) : mode === "plan" ? (
-                                          <PlanIcon className="w-4 h-4 text-muted-foreground" />
+                                          <QuestionIcon className="w-3.5 h-3.5 text-blue-500" />
+                                        ) : isSubChatLoading ? (
+                                          <LoadingDot isLoading={true} className="w-3.5 h-3.5 text-muted-foreground" />
+                                        ) : hasPendingPlan ? (
+                                          <div className="w-2 h-2 rounded-full bg-amber-500" />
                                         ) : (
-                                          <AgentIcon className="w-4 h-4 text-muted-foreground" />
+                                          <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
                                         )}
                                       </div>
-                                      {/* Badge - hidden in multi-select mode and when pending question */}
-                                      {(isSubChatLoading || hasUnseen || hasPendingPlan) &&
-                                        !isMultiSelectMode && !hasPendingQuestion && (
-                                          <div
-                                            className={cn(
-                                              "absolute -bottom-1 -right-1 w-3 h-3 rounded-full flex items-center justify-center",
-                                              isActive
-                                                ? "bg-[#E8E8E8] dark:bg-[#1B1B1B]"
-                                                : "bg-[#F4F4F4] group-hover:bg-[#E8E8E8] dark:bg-[#101010] dark:group-hover:bg-[#1B1B1B]",
-                                            )}
-                                          >
-                                            {/* Priority: loader > amber dot (pending plan) > blue dot (unseen) */}
-                                            {isSubChatLoading ? (
-                                              <LoadingDot isLoading={true} className="w-2.5 h-2.5 text-muted-foreground" />
-                                            ) : hasPendingPlan ? (
-                                              <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                                            ) : (
-                                              <LoadingDot isLoading={false} className="w-2.5 h-2.5 text-muted-foreground" />
-                                            )}
-                                          </div>
-                                        )}
-                                    </div>
+                                    ) : null}
                                     <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                                       <div className="flex items-center gap-1">
                                         {editingSubChatId === subChat.id ? (
@@ -1840,10 +1691,10 @@ export function AgentsSubChatsSidebar({
                                         <div className="flex items-center gap-1.5 flex-shrink-0">
                                           {!draftText && stats && (stats.additions > 0 || stats.deletions > 0) && (
                                             <>
-                                              <span className="text-green-600 dark:text-green-400">
+                                              <span className="text-green-600/40 dark:text-green-500/30">
                                                 +{stats.additions}
                                               </span>
-                                              <span className="text-red-600 dark:text-red-400">
+                                              <span className="text-red-600/40 dark:text-red-500/30">
                                                 -{stats.deletions}
                                               </span>
                                             </>
@@ -1887,8 +1738,9 @@ export function AgentsSubChatsSidebar({
                                   onTogglePin={togglePinSubChat}
                                   onRename={handleRenameClick}
                                   onArchive={handleArchiveSubChat}
-                                  onArchiveAllBelow={handleArchiveAllBelow}
-                                  onArchiveOthers={onCloseOtherChats}
+                                  onDelete={handleDeleteSubChat}
+                                  canMoveUp={false}
+                                  canMoveDown={false}
                                   isOnlyChat={openSubChats.length === 1}
                                   currentIndex={globalIndex}
                                   totalCount={filteredSubChats.length}

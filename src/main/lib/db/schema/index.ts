@@ -2,6 +2,23 @@ import { index, sqliteTable, text, integer } from "drizzle-orm/sqlite-core"
 import { relations } from "drizzle-orm"
 import { createId } from "../utils"
 
+// ============ FOLDERS ============
+export const folders = sqliteTable("folders", {
+  id: text("id").primaryKey().$defaultFn(() => createId()),
+  name: text("name").notNull(),
+  icon: text("icon").notNull().default("folder"),
+  color: text("color").notNull().default("#6b7280"),
+  position: text("position").notNull(), // fractional index string for ordering
+  collapsed: integer("collapsed", { mode: "boolean" }).notNull().default(false),
+  system: integer("system", { mode: "boolean" }).notNull().default(false), // true = can't delete
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+})
+
+export const foldersRelations = relations(folders, ({ many }) => ({
+  chats: many(chats),
+}))
+
 // ============ PROJECTS ============
 export const projects = sqliteTable("projects", {
   id: text("id")
@@ -22,6 +39,9 @@ export const projects = sqliteTable("projects", {
   gitRepo: text("git_repo"),
   // Custom project icon (absolute path to local image file)
   iconPath: text("icon_path"),
+  // Skip heavy git operations (status, diff, numstat) for this project.
+  // Useful for bare-repo dotfiles on ~/ where git status traverses the entire home dir.
+  skipGitStatus: integer("skip_git_status", { mode: "boolean" }).default(false),
 })
 
 export const projectsRelations = relations(projects, ({ many }) => ({
@@ -48,6 +68,9 @@ export const chats = sqliteTable("chats", {
   worktreePath: text("worktree_path"),
   branch: text("branch"),
   baseBranch: text("base_branch"),
+  // Folder assignment
+  folderId: text("folder_id").references(() => folders.id, { onDelete: "set null" }),
+  folderPosition: text("folder_position").notNull().default("a0"), // fractional index for order within folder
   // PR tracking fields
   prUrl: text("pr_url"),
   prNumber: integer("pr_number"),
@@ -59,6 +82,10 @@ export const chatsRelations = relations(chats, ({ one, many }) => ({
   project: one(projects, {
     fields: [chats.projectId],
     references: [projects.id],
+  }),
+  folder: one(folders, {
+    fields: [chats.folderId],
+    references: [folders.id],
   }),
   subChats: many(subChats),
 }))
@@ -74,8 +101,10 @@ export const subChats = sqliteTable("sub_chats", {
     .references(() => chats.id, { onDelete: "cascade" }),
   sessionId: text("session_id"), // Claude SDK session ID for resume
   streamId: text("stream_id"), // Track in-progress streams
+  position: text("position").notNull().default("a0"), // fractional index for tab ordering
   mode: text("mode").notNull().default("agent"), // "plan" | "agent"
   messages: text("messages").notNull().default("[]"), // JSON array
+  notes: text("notes").default(""), // freeform user notes
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
     () => new Date(),
   ),
@@ -129,6 +158,8 @@ export const anthropicSettings = sqliteTable("anthropic_settings", {
 })
 
 // ============ TYPE EXPORTS ============
+export type Folder = typeof folders.$inferSelect
+export type NewFolder = typeof folders.$inferInsert
 export type Project = typeof projects.$inferSelect
 export type NewProject = typeof projects.$inferInsert
 export type Chat = typeof chats.$inferSelect

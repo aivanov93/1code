@@ -56,6 +56,7 @@ function AppContent() {
   const setApiKeyOnboardingCompleted = useSetAtom(apiKeyOnboardingCompletedAtom)
   const codexOnboardingCompleted = useAtomValue(codexOnboardingCompletedAtom)
   const selectedProject = useAtomValue(selectedProjectAtom)
+  const setSelectedProject = useSetAtom(selectedProjectAtom)
   const setSelectedChatId = useSetAtom(selectedAgentChatIdAtom)
   const { setActiveSubChat, addToOpenSubChats, setChatId } = useAgentSubChatStore()
 
@@ -148,6 +149,20 @@ function AppContent() {
     const exists = projects.some((p) => p.id === selectedProject.id)
     return exists ? selectedProject : null
   }, [selectedProject, projects, isLoadingProjects])
+
+  // Auto-select first project when projects exist but none is selected
+  // (e.g. localStorage was lost due to native module rebuild)
+  useEffect(() => {
+    if (!selectedProject && !isLoadingProjects && projects?.length) {
+      const p = projects[0]!
+      setSelectedProject({
+        id: p.id, name: p.name, path: p.path,
+        gitRemoteUrl: p.gitRemoteUrl,
+        gitProvider: p.gitProvider as "github" | "gitlab" | "bitbucket" | null,
+        gitOwner: p.gitOwner, gitRepo: p.gitRepo,
+      })
+    }
+  }, [selectedProject, isLoadingProjects, projects, setSelectedProject])
 
   // Determine which page to show:
   // 1. No billing method selected -> BillingMethodPage

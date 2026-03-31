@@ -143,11 +143,17 @@ export const VSCODE_TO_CSS_MAP: Record<string, string[]> = {
     "inputValidation.errorBackground",
   ],
   
-  // Timeline/Content background (used for sidebars, dialogs)
-  // sideBar.background has priority for consistent sidebar color
-  "--tl-background": [
+  // Main sidebar background (left workspace sidebar)
+  "--sidebar": [
     "sideBar.background",
+    "activityBar.background",
     "panel.background",
+  ],
+
+  // Timeline/Content background (used for secondary sidebar, dialogs)
+  "--tl-background": [
+    "panel.background",
+    "sideBar.background",
     "editor.background",
   ],
 }

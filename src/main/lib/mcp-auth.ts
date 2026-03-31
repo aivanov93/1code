@@ -92,6 +92,11 @@ export async function fetchMcpToolsStdio(config: {
   args?: string[];
   env?: Record<string, string>;
 }): Promise<McpToolInfo[]> {
+  // DISABLED: StdioClientTransport child process cleanup triggers a microtask
+  // spiral that freezes the Electron main process at 100% CPU.
+  // TODO: move to worker thread to isolate from main event loop
+  return [];
+
   let transport: StdioClientTransport | null = null;
 
   try {

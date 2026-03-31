@@ -26,7 +26,7 @@ import { fileViewerOpenAtomFamily, diffViewDisplayModeAtom, diffSidebarOpenAtomF
 import { useChangesStore } from "../../lib/stores/changes-store";
 import { usePRStatus } from "../../hooks/usePRStatus";
 import { useFileChangeListener } from "../../lib/hooks/use-file-change-listener";
-import type { ChangeCategory, ChangedFile } from "../../../shared/changes-types";
+import type { ChangeCategory, ChangedFile, ParsedDiffFile } from "../../../shared/changes-types";
 import { cn } from "../../lib/utils";
 import { ChangesFileFilter, type SubChatFilterItem } from "./components/changes-file-filter";
 import { CommitInput } from "./components/commit-input";
@@ -264,6 +264,54 @@ interface ChangesViewProps {
 	onActiveTabChange?: (tab: "changes" | "history") => void;
 	/** Number of commits ahead of upstream (for unpushed indicator) */
 	pushCount?: number;
+	/** Pre-parsed working tree diff for instant changes rendering */
+	parsedFileDiffs?: ParsedDiffFile[] | null;
+}
+
+function parsedDiffFileToChangedFile(file: ParsedDiffFile): ChangedFile | null {
+	const path = file.newPath && file.newPath !== "/dev/null" ? file.newPath : file.oldPath;
+	if (!path || path === "/dev/null") return null;
+
+	if (file.isNewFile) {
+		return {
+			path,
+			status: "added",
+			additions: file.additions,
+			deletions: file.deletions,
+		};
+	}
+
+	if (file.isDeletedFile) {
+		return {
+			path,
+			status: "deleted",
+			additions: file.additions,
+			deletions: file.deletions,
+		};
+	}
+
+	if (
+		file.oldPath &&
+		file.newPath &&
+		file.oldPath !== "/dev/null" &&
+		file.newPath !== "/dev/null" &&
+		file.oldPath !== file.newPath
+	) {
+		return {
+			path: file.newPath,
+			oldPath: file.oldPath,
+			status: "renamed",
+			additions: file.additions,
+			deletions: file.deletions,
+		};
+	}
+
+	return {
+		path,
+		status: "modified",
+		additions: file.additions,
+		deletions: file.deletions,
+	};
 }
 
 export function ChangesView({
@@ -283,6 +331,7 @@ export function ChangesView({
 	onCommitFileSelect,
 	onActiveTabChange,
 	pushCount,
+	parsedFileDiffs = null,
 }: ChangesViewProps) {
 	useFileChangeListener(worktreePath);
 
@@ -416,6 +465,7 @@ export function ChangesView({
 	const [subChatFilter, setSubChatFilter] = useState<string | null>(initialSubChatFilter);
 	const [internalActiveTab, setInternalActiveTab] = useState<"changes" | "history">("changes");
 	const activeTab = controlledActiveTab ?? internalActiveTab;
+	const shouldUseParsedChanges = activeTab === "changes" && parsedFileDiffs !== null;
 	const fileListRef = useRef<HTMLDivElement>(null);
 	const prevAllPathsRef = useRef<Set<string>>(new Set());
 
@@ -459,6 +509,17 @@ export function ChangesView({
 
 	// Combine all files into a flat list
 	const allFiles = useMemo(() => {
+		if (shouldUseParsedChanges) {
+			return (parsedFileDiffs || [])
+				.map((file) => {
+					const changedFile = parsedDiffFileToChangedFile(file);
+					if (!changedFile) return null;
+					return { file: changedFile, category: "unstaged" as ChangeCategory };
+				})
+				.filter((entry): entry is { file: ChangedFile; category: ChangeCategory } => entry !== null)
+				.sort((a, b) => a.file.path.localeCompare(b.file.path));
+		}
+
 		if (!status) return [];
 
 		const files: Array<{ file: ChangedFile; category: ChangeCategory }> = [];
@@ -482,7 +543,7 @@ export function ChangesView({
 		files.sort((a, b) => a.file.path.localeCompare(b.file.path));
 
 		return files;
-	}, [status]);
+	}, [parsedFileDiffs, shouldUseParsedChanges, status]);
 
 	// Initialize selection, then auto-select newly added paths on subsequent updates
 	useEffect(() => {
@@ -794,7 +855,7 @@ export function ChangesView({
 		);
 	}
 
-	if (isLoading) {
+	if (isLoading && !shouldUseParsedChanges) {
 	return (
 			<div className="flex-1 flex items-center justify-center text-muted-foreground text-sm p-4">
 				Loading changes...
@@ -802,7 +863,7 @@ export function ChangesView({
 		);
 	}
 
-	if (!status) {
+	if (!status && !shouldUseParsedChanges) {
 		return (
 			<div className="flex-1 flex items-center justify-center text-muted-foreground text-sm p-4">
 				Unable to load changes
@@ -1003,7 +1064,7 @@ export function ChangesView({
 							onRefresh={handleRefresh}
 							onCommitSuccess={handleCommitSuccess}
 							stagedCount={selectedCount}
-							currentBranch={status.branch}
+							currentBranch={status?.branch || branchData?.current || ""}
 							selectedFilePaths={selectedFilePaths}
 							chatId={chatId}
 						/>

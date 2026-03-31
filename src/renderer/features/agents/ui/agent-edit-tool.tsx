@@ -541,11 +541,11 @@ export const AgentEditTool = memo(function AgentEditTool({
           {/* Diff stats - only show when not pending */}
           {!isPending && !isInputStreaming && diffStats && (
             <div className="flex items-center gap-1.5 text-xs">
-              <span className="text-green-600 dark:text-green-400">
+              <span className="text-green-600/40 dark:text-green-500/30">
                 +{diffStats.addedLines}
               </span>
               {diffStats.removedLines > 0 && (
-                <span className="text-red-600 dark:text-red-400">
+                <span className="text-red-600/40 dark:text-red-500/30">
                   -{diffStats.removedLines}
                 </span>
               )}

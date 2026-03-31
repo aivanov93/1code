@@ -1,6 +1,6 @@
 "use client"
 
-import { Brain, ChevronRight, Zap } from "lucide-react"
+import { ChevronRight, Zap } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { AnimatePresence, motion } from "motion/react"
@@ -11,10 +11,8 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-  CommandSeparator,
 } from "../../../components/ui/command"
-import { CheckIcon, ClaudeCodeIcon, IconChevronDown, ThinkingIcon } from "../../../components/ui/icons"
-import { Switch } from "../../../components/ui/switch"
+import { CheckIcon, ClaudeCodeIcon, IconChevronDown } from "../../../components/ui/icons"
 import { Checkbox } from "../../../components/ui/checkbox"
 import { Button } from "../../../components/ui/button"
 import {
@@ -25,10 +23,11 @@ import {
 import { cn } from "../../../lib/utils"
 import type {
   ClaudeModelOption,
+  ClaudeEffortLevel,
   CodexModelOption,
   CodexThinkingLevel,
 } from "../lib/models"
-import { formatCodexThinkingLabel } from "../lib/models"
+import { formatCodexThinkingLabel, formatClaudeEffortLabel } from "../lib/models"
 
 const CROSS_PROVIDER_DIALOG_DISMISSED_KEY = "agent-model-selector:skip-cross-provider-dialog"
 
@@ -60,8 +59,8 @@ interface AgentModelSelectorProps {
     selectedOllamaModel?: string
     recommendedOllamaModel?: string
     onSelectOllamaModel: (modelId: string) => void
-    thinkingEnabled: boolean
-    onThinkingChange: (enabled: boolean) => void
+    effort: ClaudeEffortLevel
+    onEffortChange: (effort: ClaudeEffortLevel) => void
   }
   codex: {
     models: CodexModelOption[]
@@ -77,121 +76,6 @@ type FlatModelItem =
   | { type: "codex"; model: CodexModelOption }
   | { type: "ollama"; modelName: string; isRecommended: boolean }
 
-function CodexThinkingSubMenu({
-  thinkings,
-  selectedThinking,
-  onSelectThinking,
-}: {
-  thinkings: CodexThinkingLevel[]
-  selectedThinking: CodexThinkingLevel
-  onSelectThinking: (thinking: CodexThinkingLevel) => void
-}) {
-  const triggerRef = useRef<HTMLDivElement>(null)
-  const subMenuRef = useRef<HTMLDivElement>(null)
-  const [showSub, setShowSub] = useState(false)
-  const [subPos, setSubPos] = useState({ top: 0, left: 0 })
-  const closeTimeout = useRef<ReturnType<typeof setTimeout>>()
-
-  const scheduleClose = useCallback(() => {
-    closeTimeout.current = setTimeout(() => setShowSub(false), 150)
-  }, [])
-
-  const cancelClose = useCallback(() => {
-    clearTimeout(closeTimeout.current)
-  }, [])
-
-  const handleTriggerEnter = useCallback(() => {
-    cancelClose()
-    if (triggerRef.current) {
-      const triggerRect = triggerRef.current.getBoundingClientRect()
-      const popoverEl = triggerRef.current.closest(
-        "[data-radix-popper-content-wrapper] > *",
-      )
-      setSubPos({
-        top: triggerRect.top - 4,
-        left: triggerRect.right + 6,
-      })
-    }
-    setShowSub(true)
-  }, [cancelClose])
-
-  const handleTriggerLeave = useCallback(
-    (e: React.MouseEvent) => {
-      const related = e.relatedTarget as Node | null
-      if (subMenuRef.current?.contains(related)) return
-      scheduleClose()
-    },
-    [scheduleClose],
-  )
-
-  const handleSubLeave = useCallback(
-    (e: React.MouseEvent) => {
-      const related = e.relatedTarget as Node | null
-      if (triggerRef.current?.contains(related)) return
-      scheduleClose()
-    },
-    [scheduleClose],
-  )
-
-  useEffect(() => {
-    return () => clearTimeout(closeTimeout.current)
-  }, [])
-
-  return (
-    <div className="py-1">
-      <div
-        ref={triggerRef}
-        onMouseEnter={handleTriggerEnter}
-        onMouseLeave={handleTriggerLeave}
-        className={cn(
-          "flex items-center justify-between gap-1.5 min-h-[32px] py-[5px] px-1.5 mx-1 rounded-md text-sm cursor-default select-none outline-none transition-colors",
-          showSub
-            ? "dark:bg-neutral-800 bg-accent text-foreground"
-            : "dark:hover:bg-neutral-800 hover:text-foreground",
-        )}
-      >
-        <div className="flex items-center gap-1.5">
-          <Brain className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-          <span>Thinking</span>
-        </div>
-        <div className="flex items-center gap-1 text-muted-foreground">
-          <span className="text-xs">
-            {formatCodexThinkingLabel(selectedThinking)}
-          </span>
-          <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-        </div>
-      </div>
-
-      {showSub &&
-        createPortal(
-          <div
-            ref={subMenuRef}
-            onMouseEnter={cancelClose}
-            onMouseLeave={handleSubLeave}
-            className="fixed z-50 min-w-[180px] overflow-auto rounded-[10px] border border-border bg-popover text-sm text-popover-foreground shadow-lg py-1 animate-in fade-in-0 zoom-in-95 slide-in-from-left-2"
-            style={{ top: subPos.top, left: subPos.left }}
-          >
-            {thinkings.map((thinking) => {
-              const isSelected = selectedThinking === thinking
-              return (
-                <button
-                  key={thinking}
-                  onClick={() => onSelectThinking(thinking)}
-                  className="flex items-center justify-between gap-4 min-h-[32px] py-[5px] px-1.5 mx-1 w-[calc(100%-8px)] rounded-md text-sm cursor-default select-none outline-none dark:hover:bg-neutral-800 hover:text-foreground transition-colors"
-                >
-                  <span>{formatCodexThinkingLabel(thinking)}</span>
-                  {isSelected && (
-                    <CheckIcon className="h-3.5 w-3.5 shrink-0" />
-                  )}
-                </button>
-              )
-            })}
-          </div>,
-          document.body,
-        )}
-    </div>
-  )
-}
 
 const DIALOG_EASING = [0.55, 0.055, 0.675, 0.19] as const
 
@@ -315,6 +199,44 @@ export function AgentModelSelector({
   const [search, setSearch] = useState("")
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
   const [pendingProvider, setPendingProvider] = useState<AgentProviderId | null>(null)
+
+  // Inline level submenu state (shown when hovering a Claude/Codex model row)
+  const [levelSubMenu, setLevelSubMenu] = useState<{
+    key: string
+    type: "claude" | "codex"
+    pos: { top: number; left: number }
+  } | null>(null)
+  const levelSubRef = useRef<HTMLDivElement>(null)
+  const levelSubTimeout = useRef<ReturnType<typeof setTimeout>>()
+
+  const scheduleLevelClose = useCallback(() => {
+    levelSubTimeout.current = setTimeout(() => setLevelSubMenu(null), 150)
+  }, [])
+  const cancelLevelClose = useCallback(() => {
+    clearTimeout(levelSubTimeout.current)
+  }, [])
+
+  useEffect(() => () => clearTimeout(levelSubTimeout.current), [])
+
+  // Resolve which levels/labels to show for the active submenu
+  const levelSubMenuContent = useMemo(() => {
+    if (!levelSubMenu) return null
+    if (levelSubMenu.type === "claude") {
+      return {
+        levels: ["low", "medium", "high", "max"] as ClaudeEffortLevel[],
+        selected: claude.effort,
+        onSelect: claude.onEffortChange as (l: string) => void,
+        format: formatClaudeEffortLabel as (l: string) => string,
+      }
+    }
+    const codexModel = codex.models.find((m) => m.slug === codex.selectedModelId) || codex.models[0]
+    return {
+      levels: (codexModel?.thinkings || ["low", "medium", "high"]) as string[],
+      selected: codex.selectedThinking as string,
+      onSelect: codex.onSelectThinking as (l: string) => void,
+      format: formatCodexThinkingLabel as (l: string) => string,
+    }
+  }, [levelSubMenu, claude, codex])
 
   const canSelectProvider = (provider: AgentProviderId) =>
     allowProviderSwitch || selectedAgentId === provider
@@ -473,6 +395,38 @@ export function AgentModelSelector({
     handleOpenChange(false)
   }
 
+  const hasLevelSubmenu = (item: FlatModelItem): boolean =>
+    item.type === "claude" || item.type === "codex"
+
+  const getLevelLabel = (item: FlatModelItem): string | null => {
+    if (item.type === "claude") return formatClaudeEffortLabel(claude.effort)
+    if (item.type === "codex") return formatCodexThinkingLabel(codex.selectedThinking)
+    return null
+  }
+
+  const handleRowMouseEnter = useCallback(
+    (item: FlatModelItem, e: React.MouseEvent) => {
+      if (item.type !== "claude" && item.type !== "codex") return
+      cancelLevelClose()
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+      setLevelSubMenu({
+        key: item.type === "claude" ? `claude-${item.model.slug}` : `codex-${item.model.slug}`,
+        type: item.type,
+        pos: { top: rect.top - 4, left: rect.right + 6 },
+      })
+    },
+    [cancelLevelClose],
+  )
+
+  const handleRowMouseLeave = useCallback(
+    (e: React.MouseEvent) => {
+      const related = e.relatedTarget as Node | null
+      if (levelSubRef.current?.contains(related)) return
+      scheduleLevelClose()
+    },
+    [scheduleLevelClose],
+  )
+
   const getItemIcon = (item: FlatModelItem) => {
     switch (item.type) {
       case "claude":
@@ -532,47 +486,6 @@ export function AgentModelSelector({
             onValueChange={setSearch}
           />
 
-          {/* Claude thinking toggle */}
-          {selectedAgentId === "claude-code" &&
-            !claude.isOffline &&
-            (
-            <>
-              <div
-                className="flex items-center justify-between min-h-[32px] py-[5px] px-1.5 mx-1"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="flex items-center gap-1.5">
-                  <ThinkingIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  <span className="text-sm">Thinking</span>
-                </div>
-                <Switch
-                  checked={claude.thinkingEnabled}
-                  onCheckedChange={claude.onThinkingChange}
-                  className="scale-75"
-                />
-              </div>
-              <CommandSeparator />
-            </>
-          )}
-
-          {/* Codex thinking level selector with hover sub-menu */}
-          {selectedAgentId === "codex" && (() => {
-            const selectedCodexModel =
-              codex.models.find((m) => m.slug === codex.selectedModelId) ||
-              codex.models[0]
-            if (!selectedCodexModel) return null
-            return (
-              <>
-                <CodexThinkingSubMenu
-                  thinkings={selectedCodexModel.thinkings}
-                  selectedThinking={codex.selectedThinking}
-                  onSelectThinking={codex.onSelectThinking}
-                />
-                <CommandSeparator />
-              </>
-            )
-          })()}
-
           <CommandList className="max-h-[300px] overflow-y-auto">
             {filteredModels.length > 0 ? (
               <CommandGroup>
@@ -580,6 +493,8 @@ export function AgentModelSelector({
                   const selected = isItemSelected(item)
                   const disabled = isItemDisabled(item)
                   const crossProvider = isItemCrossProvider(item)
+                  const withLevel = hasLevelSubmenu(item)
+                  const isLevelActive = levelSubMenu?.key === getItemKey(item)
                   return (
                     <CommandItem
                       key={getItemKey(item)}
@@ -587,6 +502,8 @@ export function AgentModelSelector({
                       onSelect={() => handleItemClick(item)}
                       disabled={disabled}
                       className={cn("gap-2", crossProvider && "opacity-60")}
+                      onMouseEnter={withLevel ? (e) => handleRowMouseEnter(item, e) : undefined}
+                      onMouseLeave={withLevel ? handleRowMouseLeave : undefined}
                     >
                       {getItemIcon(item)}
                       <span className="truncate flex-1">{getItemLabel(item)}</span>
@@ -595,6 +512,12 @@ export function AgentModelSelector({
                       )}
                       {selected && (
                         <CheckIcon className="h-4 w-4 shrink-0" />
+                      )}
+                      {withLevel && (
+                        <div className="flex items-center gap-0.5 text-muted-foreground shrink-0">
+                          <span className="text-[10px]">{getLevelLabel(item)}</span>
+                          <ChevronRight className={cn("h-3 w-3", isLevelActive && "text-foreground")} />
+                        </div>
                       )}
                     </CommandItem>
                   )
@@ -620,6 +543,38 @@ export function AgentModelSelector({
             </div>
           )}
         </Command>
+
+        {/* Level submenu portal (effort/thinking) triggered by hovering model rows */}
+        {levelSubMenu && levelSubMenuContent &&
+          createPortal(
+            <div
+              ref={levelSubRef}
+              onMouseEnter={cancelLevelClose}
+              onMouseLeave={(e) => {
+                const related = e.relatedTarget as Node | null
+                // Don't close if moving back to the model list
+                if ((e.currentTarget as HTMLElement)?.closest?.("[data-radix-popper-content-wrapper]")?.contains(related)) return
+                scheduleLevelClose()
+              }}
+              className="fixed z-50 min-w-[140px] overflow-auto rounded-[10px] border border-border bg-popover text-sm text-popover-foreground shadow-lg py-1 animate-in fade-in-0 zoom-in-95 slide-in-from-left-2"
+              style={{ top: levelSubMenu.pos.top, left: levelSubMenu.pos.left }}
+            >
+              {levelSubMenuContent.levels.map((level) => {
+                const isSelected = levelSubMenuContent.selected === level
+                return (
+                  <button
+                    key={level}
+                    onClick={() => levelSubMenuContent.onSelect(level)}
+                    className="flex items-center justify-between gap-4 min-h-[32px] py-[5px] px-1.5 mx-1 w-[calc(100%-8px)] rounded-md text-sm cursor-default select-none outline-none dark:hover:bg-neutral-800 hover:text-foreground transition-colors"
+                  >
+                    <span>{levelSubMenuContent.format(level)}</span>
+                    {isSelected && <CheckIcon className="h-3.5 w-3.5 shrink-0" />}
+                  </button>
+                )
+              })}
+            </div>,
+            document.body,
+          )}
       </PopoverContent>
 
       <CrossProviderConfirmDialog

@@ -41,8 +41,11 @@ interface SubChatContextMenuProps {
   onTogglePin: (subChatId: string) => void
   onRename: (subChat: SubChatMeta) => void
   onArchive: (subChatId: string) => void
-  onArchiveOthers: (subChatId: string) => void
-  onArchiveAllBelow?: (subChatId: string) => void
+  onDelete: (subChatId: string) => void
+  onMoveUp?: (subChatId: string) => void
+  onMoveDown?: (subChatId: string) => void
+  canMoveUp?: boolean
+  canMoveDown?: boolean
   isOnlyChat: boolean
   currentIndex?: number
   totalCount?: number
@@ -75,8 +78,11 @@ export function SubChatContextMenu({
   onTogglePin,
   onRename,
   onArchive,
-  onArchiveOthers,
-  onArchiveAllBelow,
+  onDelete,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp = false,
+  canMoveDown = false,
   isOnlyChat,
   currentIndex,
   totalCount,
@@ -109,9 +115,17 @@ export function SubChatContextMenu({
 
   return (
     <ContextMenuContent className="w-48">
-      <ContextMenuItem onClick={() => onTogglePin(subChat.id)}>
-        {isPinned ? "Unpin chat" : "Pin chat"}
-      </ContextMenuItem>
+      {(onMoveUp || onMoveDown) && (
+        <>
+          <ContextMenuItem disabled={!canMoveUp} onClick={() => onMoveUp?.(subChat.id)}>
+            Move up
+          </ContextMenuItem>
+          <ContextMenuItem disabled={!canMoveDown} onClick={() => onMoveDown?.(subChat.id)}>
+            Move down
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+        </>
+      )}
       <ContextMenuItem onClick={() => onRename(subChat)}>
         Rename chat
       </ContextMenuItem>
@@ -203,19 +217,10 @@ export function SubChatContextMenu({
             {!isOnlyChat && <Kbd>{closeTabShortcut}</Kbd>}
           </ContextMenuItem>
           <ContextMenuItem
-            onClick={() => onArchiveAllBelow?.(subChat.id)}
-            disabled={
-              currentIndex === undefined ||
-              currentIndex >= (totalCount || 0) - 1
-            }
+            onClick={() => onDelete(subChat.id)}
+            className="text-destructive focus:text-destructive"
           >
-            Archive chats below
-          </ContextMenuItem>
-          <ContextMenuItem
-            onClick={() => onArchiveOthers(subChat.id)}
-            disabled={isOnlyChat}
-          >
-            Archive other chats
+            Delete chat
           </ContextMenuItem>
         </>
       )}

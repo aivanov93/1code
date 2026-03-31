@@ -41,6 +41,7 @@ module.exports = {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
         },
+        sidebar: "hsl(var(--sidebar))",
         "tl-background": "hsl(var(--tl-background))",
         "input-background": "hsl(var(--input-background))",
         "plan-mode": {

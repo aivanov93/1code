@@ -4,6 +4,7 @@ import { z } from "zod";
 import { publicProcedure, router } from "../trpc";
 import { isUpstreamMissingError } from "./git-utils";
 import { assertRegisteredWorktree } from "./security";
+import { shouldSkipGitStatus } from "./status";
 import { fetchGitHubPRStatus } from "./github";
 import { gitCache } from "./cache";
 import {
@@ -628,6 +629,7 @@ export const createGitOperationsRouter = () => {
 			)
 			.query(async ({ input }) => {
 				assertRegisteredWorktree(input.worktreePath);
+				if (shouldSkipGitStatus(input.worktreePath)) return null;
 				return await fetchGitHubPRStatus(input.worktreePath);
 			}),
 	});

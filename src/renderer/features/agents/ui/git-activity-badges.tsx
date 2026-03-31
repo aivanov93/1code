@@ -123,8 +123,8 @@ export const GitActivityBadges = memo(function GitActivityBadges({
               <span>Edited {changedFiles.length} {changedFiles.length === 1 ? "file" : "files"}</span>
               {(totals.additions > 0 || totals.deletions > 0) && (
                 <>
-                  <span className="text-green-600 dark:text-green-400">+{totals.additions}</span>
-                  <span className="text-red-600 dark:text-red-400">-{totals.deletions}</span>
+                  <span className="text-green-600/40 dark:text-green-500/30">+{totals.additions}</span>
+                  <span className="text-red-600/40 dark:text-red-500/30">-{totals.deletions}</span>
                 </>
               )}
             </div>
@@ -190,8 +190,8 @@ export const GitActivityBadges = memo(function GitActivityBadges({
                           <FileIcon className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
                         )}
                         <span className="truncate flex-1 text-foreground">{file.displayPath}</span>
-                        <span className="flex-shrink-0 text-green-600 dark:text-green-400">+{file.additions}</span>
-                        <span className="flex-shrink-0 text-red-600 dark:text-red-400">-{file.deletions}</span>
+                        <span className="flex-shrink-0 text-green-600/40 dark:text-green-500/30">+{file.additions}</span>
+                        <span className="flex-shrink-0 text-red-600/40 dark:text-red-500/30">-{file.deletions}</span>
                       </div>
                     )
                   })}

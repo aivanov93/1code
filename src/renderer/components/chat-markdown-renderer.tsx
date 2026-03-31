@@ -1,3 +1,4 @@
+import { trpcClient } from "../lib/trpc"
 import { cn } from "../lib/utils"
 import { memo, useState, useCallback, useEffect, useMemo } from "react"
 import { Streamdown, parseMarkdownIntoBlocks } from "streamdown"
@@ -7,6 +8,25 @@ import { Copy, Check } from "lucide-react"
 import { useCodeTheme } from "../lib/hooks/use-code-theme"
 import { highlightCode } from "../lib/themes/shiki-theme-loader"
 import { MermaidBlock } from "./mermaid-block"
+
+// Detect local file paths in markdown links, extract optional #L<num> line anchor
+function parseLocalFilePath(href: string): { path: string; line?: number } | null {
+  if (!href || (!href.startsWith("/") && !href.startsWith("~"))) return null
+  const [filePath, hash] = href.split("#")
+  const lineMatch = hash?.match(/^L(\d+)/)
+  return { path: filePath, line: lineMatch ? parseInt(lineMatch[1], 10) : undefined }
+}
+
+function handleLinkClick(href: string) {
+  const fileInfo = parseLocalFilePath(href)
+  if (fileInfo) {
+    // cursor/code accept file:line syntax
+    const editorPath = fileInfo.line ? `${fileInfo.path}:${fileInfo.line}` : fileInfo.path
+    trpcClient.external.openFileInEditor.mutate({ path: editorPath })
+  } else {
+    window.desktopApi.openExternal(href)
+  }
+}
 
 // Function to strip emojis from text (only common emojis, preserving markdown symbols)
 export function stripEmojis(text: string): string {
@@ -352,11 +372,12 @@ export const ChatMarkdownRenderer = memo(function ChatMarkdownRenderer({
           href={href}
           onClick={(e) => {
             e.preventDefault()
-            if (href) {
-              window.desktopApi.openExternal(href)
-            }
+            if (href) handleLinkClick(href)
           }}
-          className="text-blue-600 dark:text-blue-400 no-underline hover:underline hover:decoration-current underline-offset-2 decoration-1 transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500/30 focus-visible:rounded-sm"
+          className={cn(
+            "no-underline hover:underline hover:decoration-current underline-offset-2 decoration-1 transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500/30 focus-visible:rounded-sm",
+            parseLocalFilePath(href) ? "text-foreground/70 hover:text-foreground" : "text-blue-600 dark:text-blue-400",
+          )}
           {...props}
         >
           {children}
@@ -616,11 +637,12 @@ const MemoizedMarkdownBlock = memo(
             href={href}
             onClick={(e) => {
               e.preventDefault()
-              if (href) {
-                window.desktopApi.openExternal(href)
-              }
+              if (href) handleLinkClick(href)
             }}
-            className="text-blue-600 dark:text-blue-400 no-underline hover:underline hover:decoration-current underline-offset-2 decoration-1 transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500/30 focus-visible:rounded-sm"
+            className={cn(
+              "no-underline hover:underline hover:decoration-current underline-offset-2 decoration-1 transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500/30 focus-visible:rounded-sm",
+              parseLocalFilePath(href) ? "text-foreground/70 hover:text-foreground" : "text-blue-600 dark:text-blue-400",
+            )}
             {...props}
           >
             {children}

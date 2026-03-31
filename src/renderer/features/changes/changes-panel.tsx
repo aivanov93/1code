@@ -1,4 +1,4 @@
-import type { ChangeCategory, ChangedFile } from "../../../shared/changes-types";
+import type { ChangeCategory, ChangedFile, ParsedDiffFile } from "../../../shared/changes-types";
 import { ChangesView } from "./changes-view";
 import type { SubChatFilterItem } from "./components/changes-file-filter";
 import type { CommitInfo } from "./components/history-view";
@@ -41,6 +41,8 @@ interface ChangesPanelProps {
 	onActiveTabChange?: (tab: "changes" | "history") => void;
 	/** Number of commits ahead of upstream (for unpushed indicator) */
 	pushCount?: number;
+	/** Pre-parsed working tree diff for instant changes rendering */
+	parsedFileDiffs?: ParsedDiffFile[] | null;
 }
 
 export function ChangesPanel({
@@ -60,6 +62,7 @@ export function ChangesPanel({
 	onCommitFileSelect,
 	onActiveTabChange,
 	pushCount,
+	parsedFileDiffs,
 }: ChangesPanelProps) {
 	if (!worktreePath) {
 		return (
@@ -88,6 +91,7 @@ export function ChangesPanel({
 				onCommitFileSelect={onCommitFileSelect}
 				onActiveTabChange={onActiveTabChange}
 				pushCount={pushCount}
+				parsedFileDiffs={parsedFileDiffs}
 			/>
 		</div>
 	);

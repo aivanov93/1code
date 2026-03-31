@@ -1,5 +1,19 @@
 export type CodexThinkingLevel = "low" | "medium" | "high" | "xhigh"
 
+export type ClaudeEffortLevel = "low" | "medium" | "high" | "max"
+
+export const ALL_CLAUDE_EFFORT_LEVELS: ClaudeEffortLevel[] = [
+  "low",
+  "medium",
+  "high",
+  "max",
+]
+
+export function formatClaudeEffortLabel(effort: ClaudeEffortLevel): string {
+  if (effort === "max") return "Max"
+  return effort.charAt(0).toUpperCase() + effort.slice(1)
+}
+
 export type ClaudeModelOption = {
   label: string
   slug: string

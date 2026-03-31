@@ -17,8 +17,6 @@ import { trpc } from "../../../lib/trpc"
 import { Plus, AlignJustify, Play, TerminalSquare, X } from "lucide-react"
 import {
   IconSpinner,
-  PlanIcon,
-  AgentIcon,
   IconOpenSidebarRight,
   PinFilledIcon,
   DiffIcon,
@@ -102,25 +100,19 @@ const SearchHistoryPopover = memo(forwardRef<SearchHistoryPopoverRef, SearchHist
 
     return (
       <div className="flex items-center gap-2 flex-1 min-w-0">
-        <div className="flex-shrink-0 w-4 h-4 flex items-center justify-center relative">
-          {hasPendingQuestion ? (
-            <QuestionIcon className="w-4 h-4 text-blue-500" />
-          ) : isLoading ? (
-            <IconSpinner className="w-4 h-4 text-muted-foreground" />
-          ) : mode === "plan" ? (
-            <PlanIcon className="w-4 h-4 text-muted-foreground" />
-          ) : (
-            <AgentIcon className="w-4 h-4 text-muted-foreground" />
-          )}
-          {(hasPendingPlan || hasUnseen) && !isLoading && !hasPendingQuestion && (
-            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-popover flex items-center justify-center">
-              <div className={cn(
-                "w-1.5 h-1.5 rounded-full",
-                hasPendingPlan ? "bg-amber-500" : "bg-[#307BD0]"
-              )} />
-            </div>
-          )}
-        </div>
+        {(hasPendingQuestion || isLoading || hasPendingPlan || hasUnseen) && (
+          <div className="flex-shrink-0 w-4 h-4 flex items-center justify-center">
+            {hasPendingQuestion ? (
+              <QuestionIcon className="w-4 h-4 text-blue-500" />
+            ) : isLoading ? (
+              <IconSpinner className="w-4 h-4 text-muted-foreground" />
+            ) : hasPendingPlan ? (
+              <div className="w-2 h-2 rounded-full bg-amber-500" />
+            ) : (
+              <div className="w-2 h-2 rounded-full bg-[#307BD0]" />
+            )}
+          </div>
+        )}
         <span className="text-sm truncate flex-1">
           {subChat.name || "New Chat"}
         </span>
@@ -246,6 +238,7 @@ export function SubChatSelector({
   const showDiffButton = !isUnifiedSidebarEnabled || !widgetVisibility.includes("diff") || chatSourceMode === "sandbox"
   const showTerminalButton = !isUnifiedSidebarEnabled || !widgetVisibility.includes("terminal")
 
+  // Sub-chat reorder
   // Resolved hotkeys for tooltips
   const openDiffHotkey = useResolvedHotkeyDisplay("open-diff")
   const toggleTerminalHotkey = useResolvedHotkeyDisplay("toggle-terminal")
@@ -382,6 +375,15 @@ export function SubChatSelector({
     },
     [openSubChats],
   )
+
+  const deleteSubChatMutation = trpc.chats.deleteSubChat.useMutation({
+    onSuccess: () => { utils.chats.listSubChats.invalidate() },
+  })
+
+  const onDeleteSubChat = useCallback((subChatId: string) => {
+    useAgentSubChatStore.getState().removeFromOpenSubChats(subChatId)
+    deleteSubChatMutation.mutate({ id: subChatId })
+  }, [deleteSubChatMutation])
 
   const [editingSubChatId, setEditingSubChatId] = useState<string | null>(null)
   const [editName, setEditName] = useState("")
@@ -774,42 +776,18 @@ export function SubChatSelector({
                           isInSplitPair && hasSplitNext && "rounded-r-none",
                         )}
                       >
-                        {/* Icon: question icon (priority) OR loading spinner OR mode icon with badge (hide when editing) */}
-                        {editingSubChatId !== subChat.id && (
+                        {/* Status icon: only show for question/loading/badge states */}
+                        {editingSubChatId !== subChat.id && (hasPendingQuestion || isLoading || hasPendingPlan || hasUnseen) && (
                           <div className="flex-shrink-0 w-3.5 h-3.5 flex items-center justify-center relative">
                             {hasPendingQuestion ? (
-                              // Waiting for user answer: show question icon (highest priority)
                               <QuestionIcon className="w-3.5 h-3.5 text-blue-500" />
                             ) : isLoading ? (
-                              // Loading: show spinner
                               <IconSpinner className="w-3.5 h-3.5 text-muted-foreground" />
-                            ) : (
-                              <>
-                                {/* Main mode icon */}
-                                {mode === "plan" ? (
-                                  <PlanIcon className="w-3.5 h-3.5 text-muted-foreground" />
-                                ) : (
-                                  <AgentIcon className="w-3.5 h-3.5 text-muted-foreground" />
-                                )}
-                                {/* Badge in bottom-right corner: amber dot (plan) > unseen dot > pin icon */}
-                                {(hasPendingPlan || hasUnseen || isPinned) && (
-                                  <div
-                                    className={cn(
-                                      "absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full flex items-center justify-center",
-                                      isActive ? "bg-muted" : "bg-background",
-                                    )}
-                                  >
-                                    {hasPendingPlan ? (
-                                      <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                                    ) : hasUnseen ? (
-                                      <div className="w-1.5 h-1.5 rounded-full bg-[#307BD0]" />
-                                    ) : isPinned ? (
-                                      <PinFilledIcon className="w-2 h-2 text-muted-foreground" />
-                                    ) : null}
-                                  </div>
-                                )}
-                              </>
-                            )}
+                            ) : hasPendingPlan ? (
+                              <div className="w-2 h-2 rounded-full bg-amber-500" />
+                            ) : hasUnseen ? (
+                              <div className="w-2 h-2 rounded-full bg-[#307BD0]" />
+                            ) : null}
                           </div>
                         )}
 
@@ -890,7 +868,9 @@ export function SubChatSelector({
                       onTogglePin={togglePinSubChat}
                       onRename={handleRenameClick}
                       onArchive={onCloseTab}
-                      onArchiveOthers={onCloseOtherTabs}
+                      onDelete={onDeleteSubChat}
+                      canMoveUp={false}
+                      canMoveDown={false}
                       isOnlyChat={openSubChats.length === 1}
                       showCloseTabOptions={true}
                       onCloseTab={onCloseTab}

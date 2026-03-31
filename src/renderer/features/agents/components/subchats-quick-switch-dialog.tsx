@@ -153,7 +153,7 @@ function SubChatCard({
                       className={cn(
                         isSelected
                           ? "text-primary-foreground/80"
-                          : "text-green-600 dark:text-green-400",
+                          : "text-green-600/40 dark:text-green-500/30",
                       )}
                     >
                       +{stats.additions}
@@ -162,7 +162,7 @@ function SubChatCard({
                       className={cn(
                         isSelected
                           ? "text-primary-foreground/80"
-                          : "text-red-600 dark:text-red-400",
+                          : "text-red-600/40 dark:text-red-500/30",
                       )}
                     >
                       -{stats.deletions}

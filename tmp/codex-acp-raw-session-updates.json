@@ -1,0 +1,5380 @@
+{
+  "session": {
+    "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+    "modes": {
+      "currentModeId": "full-access",
+      "availableModes": [
+        {
+          "id": "read-only",
+          "name": "Read Only",
+          "description": "Codex can read files in the current workspace. Approval is required to edit files or access the internet."
+        },
+        {
+          "id": "auto",
+          "name": "Default",
+          "description": "Codex can read and edit files in the current workspace, and run commands. Approval is required to access the internet or edit other files. (Identical to Agent mode)"
+        },
+        {
+          "id": "full-access",
+          "name": "Full Access",
+          "description": "Codex can edit files outside this workspace and access the internet without asking for approval. Exercise caution when using."
+        }
+      ]
+    },
+    "models": {
+      "currentModelId": "gpt-5.4/xhigh",
+      "availableModels": [
+        {
+          "modelId": "gpt-5.4/low",
+          "name": "gpt-5.4 (low)",
+          "description": "Latest frontier agentic coding model. Fast responses with lighter reasoning"
+        },
+        {
+          "modelId": "gpt-5.4/medium",
+          "name": "gpt-5.4 (medium)",
+          "description": "Latest frontier agentic coding model. Balances speed and reasoning depth for everyday tasks"
+        },
+        {
+          "modelId": "gpt-5.4/high",
+          "name": "gpt-5.4 (high)",
+          "description": "Latest frontier agentic coding model. Greater reasoning depth for complex problems"
+        },
+        {
+          "modelId": "gpt-5.4/xhigh",
+          "name": "gpt-5.4 (xhigh)",
+          "description": "Latest frontier agentic coding model. Extra high reasoning depth for complex problems"
+        },
+        {
+          "modelId": "gpt-5.4-mini/low",
+          "name": "GPT-5.4-Mini (low)",
+          "description": "Smaller frontier agentic coding model. Fast responses with lighter reasoning"
+        },
+        {
+          "modelId": "gpt-5.4-mini/medium",
+          "name": "GPT-5.4-Mini (medium)",
+          "description": "Smaller frontier agentic coding model. Balances speed and reasoning depth for everyday tasks"
+        },
+        {
+          "modelId": "gpt-5.4-mini/high",
+          "name": "GPT-5.4-Mini (high)",
+          "description": "Smaller frontier agentic coding model. Greater reasoning depth for complex problems"
+        },
+        {
+          "modelId": "gpt-5.4-mini/xhigh",
+          "name": "GPT-5.4-Mini (xhigh)",
+          "description": "Smaller frontier agentic coding model. Extra high reasoning depth for complex problems"
+        },
+        {
+          "modelId": "gpt-5.3-codex/low",
+          "name": "gpt-5.3-codex (low)",
+          "description": "Frontier Codex-optimized agentic coding model. Fast responses with lighter reasoning"
+        },
+        {
+          "modelId": "gpt-5.3-codex/medium",
+          "name": "gpt-5.3-codex (medium)",
+          "description": "Frontier Codex-optimized agentic coding model. Balances speed and reasoning depth for everyday tasks"
+        },
+        {
+          "modelId": "gpt-5.3-codex/high",
+          "name": "gpt-5.3-codex (high)",
+          "description": "Frontier Codex-optimized agentic coding model. Greater reasoning depth for complex problems"
+        },
+        {
+          "modelId": "gpt-5.3-codex/xhigh",
+          "name": "gpt-5.3-codex (xhigh)",
+          "description": "Frontier Codex-optimized agentic coding model. Extra high reasoning depth for complex problems"
+        },
+        {
+          "modelId": "gpt-5.3-codex-spark/low",
+          "name": "GPT-5.3-Codex-Spark (low)",
+          "description": "Ultra-fast coding model. Fast responses with lighter reasoning"
+        },
+        {
+          "modelId": "gpt-5.3-codex-spark/medium",
+          "name": "GPT-5.3-Codex-Spark (medium)",
+          "description": "Ultra-fast coding model. Balances speed and reasoning depth for everyday tasks"
+        },
+        {
+          "modelId": "gpt-5.3-codex-spark/high",
+          "name": "GPT-5.3-Codex-Spark (high)",
+          "description": "Ultra-fast coding model. Greater reasoning depth for complex problems"
+        },
+        {
+          "modelId": "gpt-5.3-codex-spark/xhigh",
+          "name": "GPT-5.3-Codex-Spark (xhigh)",
+          "description": "Ultra-fast coding model. Extra high reasoning depth for complex problems"
+        },
+        {
+          "modelId": "gpt-5.2-codex/low",
+          "name": "gpt-5.2-codex (low)",
+          "description": "Frontier agentic coding model. Fast responses with lighter reasoning"
+        },
+        {
+          "modelId": "gpt-5.2-codex/medium",
+          "name": "gpt-5.2-codex (medium)",
+          "description": "Frontier agentic coding model. Balances speed and reasoning depth for everyday tasks"
+        },
+        {
+          "modelId": "gpt-5.2-codex/high",
+          "name": "gpt-5.2-codex (high)",
+          "description": "Frontier agentic coding model. Greater reasoning depth for complex problems"
+        },
+        {
+          "modelId": "gpt-5.2-codex/xhigh",
+          "name": "gpt-5.2-codex (xhigh)",
+          "description": "Frontier agentic coding model. Extra high reasoning depth for complex problems"
+        },
+        {
+          "modelId": "gpt-5.2/low",
+          "name": "gpt-5.2 (low)",
+          "description": "Optimized for professional work and long-running agents Balances speed with some reasoning; useful for straightforward queries and short explanations"
+        },
+        {
+          "modelId": "gpt-5.2/medium",
+          "name": "gpt-5.2 (medium)",
+          "description": "Optimized for professional work and long-running agents Provides a solid balance of reasoning depth and latency for general-purpose tasks"
+        },
+        {
+          "modelId": "gpt-5.2/high",
+          "name": "gpt-5.2 (high)",
+          "description": "Optimized for professional work and long-running agents Maximizes reasoning depth for complex or ambiguous problems"
+        },
+        {
+          "modelId": "gpt-5.2/xhigh",
+          "name": "gpt-5.2 (xhigh)",
+          "description": "Optimized for professional work and long-running agents Extra high reasoning for complex problems"
+        },
+        {
+          "modelId": "gpt-5.1-codex-max/low",
+          "name": "gpt-5.1-codex-max (low)",
+          "description": "Codex-optimized model for deep and fast reasoning. Fast responses with lighter reasoning"
+        },
+        {
+          "modelId": "gpt-5.1-codex-max/medium",
+          "name": "gpt-5.1-codex-max (medium)",
+          "description": "Codex-optimized model for deep and fast reasoning. Balances speed and reasoning depth for everyday tasks"
+        },
+        {
+          "modelId": "gpt-5.1-codex-max/high",
+          "name": "gpt-5.1-codex-max (high)",
+          "description": "Codex-optimized model for deep and fast reasoning. Greater reasoning depth for complex problems"
+        },
+        {
+          "modelId": "gpt-5.1-codex-max/xhigh",
+          "name": "gpt-5.1-codex-max (xhigh)",
+          "description": "Codex-optimized model for deep and fast reasoning. Extra high reasoning depth for complex problems"
+        },
+        {
+          "modelId": "gpt-5.1-codex-mini/medium",
+          "name": "gpt-5.1-codex-mini (medium)",
+          "description": "Optimized for codex. Cheaper, faster, but less capable. Dynamically adjusts reasoning based on the task"
+        },
+        {
+          "modelId": "gpt-5.1-codex-mini/high",
+          "name": "gpt-5.1-codex-mini (high)",
+          "description": "Optimized for codex. Cheaper, faster, but less capable. Maximizes reasoning depth for complex or ambiguous problems"
+        }
+      ]
+    },
+    "configOptions": [
+      {
+        "id": "mode",
+        "name": "Approval Preset",
+        "description": "Choose an approval and sandboxing preset for your session",
+        "category": "mode",
+        "type": "select",
+        "currentValue": "full-access",
+        "options": [
+          {
+            "value": "read-only",
+            "name": "Read Only",
+            "description": "Codex can read files in the current workspace. Approval is required to edit files or access the internet."
+          },
+          {
+            "value": "auto",
+            "name": "Default",
+            "description": "Codex can read and edit files in the current workspace, and run commands. Approval is required to access the internet or edit other files. (Identical to Agent mode)"
+          },
+          {
+            "value": "full-access",
+            "name": "Full Access",
+            "description": "Codex can edit files outside this workspace and access the internet without asking for approval. Exercise caution when using."
+          }
+        ]
+      },
+      {
+        "id": "model",
+        "name": "Model",
+        "description": "Choose which model Codex should use",
+        "category": "model",
+        "type": "select",
+        "currentValue": "gpt-5.4",
+        "options": [
+          {
+            "value": "gpt-5.4",
+            "name": "gpt-5.4",
+            "description": "Latest frontier agentic coding model."
+          },
+          {
+            "value": "gpt-5.4-mini",
+            "name": "GPT-5.4-Mini",
+            "description": "Smaller frontier agentic coding model."
+          },
+          {
+            "value": "gpt-5.3-codex",
+            "name": "gpt-5.3-codex",
+            "description": "Frontier Codex-optimized agentic coding model."
+          },
+          {
+            "value": "gpt-5.3-codex-spark",
+            "name": "GPT-5.3-Codex-Spark",
+            "description": "Ultra-fast coding model."
+          },
+          {
+            "value": "gpt-5.2-codex",
+            "name": "gpt-5.2-codex",
+            "description": "Frontier agentic coding model."
+          },
+          {
+            "value": "gpt-5.2",
+            "name": "gpt-5.2",
+            "description": "Optimized for professional work and long-running agents"
+          },
+          {
+            "value": "gpt-5.1-codex-max",
+            "name": "gpt-5.1-codex-max",
+            "description": "Codex-optimized model for deep and fast reasoning."
+          },
+          {
+            "value": "gpt-5.1-codex-mini",
+            "name": "gpt-5.1-codex-mini",
+            "description": "Optimized for codex. Cheaper, faster, but less capable."
+          }
+        ]
+      },
+      {
+        "id": "reasoning_effort",
+        "name": "Reasoning Effort",
+        "description": "Choose how much reasoning effort the model should use",
+        "category": "thought_level",
+        "type": "select",
+        "currentValue": "xhigh",
+        "options": [
+          {
+            "value": "low",
+            "name": "Low",
+            "description": "Fast responses with lighter reasoning"
+          },
+          {
+            "value": "medium",
+            "name": "Medium",
+            "description": "Balances speed and reasoning depth for everyday tasks"
+          },
+          {
+            "value": "high",
+            "name": "High",
+            "description": "Greater reasoning depth for complex problems"
+          },
+          {
+            "value": "xhigh",
+            "name": "Xhigh",
+            "description": "Extra high reasoning depth for complex problems"
+          }
+        ]
+      }
+    ]
+  },
+  "updates": [
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "availableCommands": [
+          {
+            "description": "Review my current changes and find issues",
+            "input": {
+              "hint": "optional custom review instructions"
+            },
+            "name": "review"
+          },
+          {
+            "description": "Review the code changes against a specific branch",
+            "input": {
+              "hint": "branch name"
+            },
+            "name": "review-branch"
+          },
+          {
+            "description": "Review the code changes introduced by a commit",
+            "input": {
+              "hint": "commit sha"
+            },
+            "name": "review-commit"
+          },
+          {
+            "description": "create an AGENTS.md file with instructions for Codex",
+            "input": null,
+            "name": "init"
+          },
+          {
+            "description": "summarize conversation to prevent hitting the context limit",
+            "input": null,
+            "name": "compact"
+          },
+          {
+            "description": "undo Codex’s most recent turn",
+            "input": null,
+            "name": "undo"
+          },
+          {
+            "description": "logout of Codex",
+            "input": null,
+            "name": "logout"
+          },
+          {
+            "description": "",
+            "input": null,
+            "name": "airchat-review"
+          },
+          {
+            "description": "Create CAWS monitoring alerts with PromQL queries and automated setup, arguments includes project=<project_name> [metrics=<metric1,metric2>] [promql_query=\"<query>\"] conditions=\"<condition1,condition2>\" [tenant=<name>] [severity=warning] [duration=5m]",
+            "input": {
+              "hint": "project=<project_name> [metrics=<metric1,metric2>] [promql_query=\"<query>\"] conditions=\"<condition1,condition2>\" [tenant=<name>] [severity=warning] [duration=5m]"
+            },
+            "name": "create-alert"
+          }
+        ],
+        "sessionUpdate": "available_commands_update"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "\n\n",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "**Preparing for file listing**\n\nI",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " need",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " to",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " respond",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " to",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " the",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " user",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "’s",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " request",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " for",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " a",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " list",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " of",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " top",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "-level",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " files",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " in",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " the",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " current",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " directory",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " It",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " seems",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " most",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " efficient",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " to",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " use",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " a",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " terminal",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " command",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " for",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " this",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " simple",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " request",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " I",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " should",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " consider",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " `",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "find",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " .",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " -",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "max",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "depth",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " 1",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " -",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "type",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " f",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " |",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " sort",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "`,",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " ensuring",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " I'm",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " only",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " listing",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " files",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ",",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " and",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " not",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " directories",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " To",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " maintain",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " clarity",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ",",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " I",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "’ll",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " send",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " a",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " short",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " update",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " before",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " executing",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " the",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " command",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ",",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " as",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " this",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " will",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " set",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " expectations",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " for",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " the",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " user",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "\n\n",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "**Deciding on file command**\n\nI",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "’m",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " considering",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " how",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " to",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " list",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " the",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " top",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "-level",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " files",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " in",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " the",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " current",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " directory",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " for",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " the",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " user",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " A",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " good",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " choice",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " seems",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " to",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " be",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " `",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "find",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " .",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " -",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "max",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "depth",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " 1",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " -",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "type",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " f",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " -",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "print",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " |",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " sed",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " '",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "s",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "|",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "^\\",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "./",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "||",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "'",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " |",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " sort",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "`",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " since",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " it",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " keeps",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " things",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " straightforward",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " Although",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " the",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " developer",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " mentions",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " using",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " `",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "rg",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " --",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "files",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "`,",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " I",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " think",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " `",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "find",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "`",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " is",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " simpler",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " for",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " this",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " request",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " I",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " should",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " also",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " send",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " a",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " brief",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " commentary",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " update",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " before",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " executing",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " the",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " command",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " to",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " keep",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " the",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " user",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " informed",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "\n\n",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "**Finalizing file list format**\n\nFor",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " the",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " final",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " answer",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ",",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " I",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "’m",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " considering",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " creating",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " a",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " concise",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " bullet",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " list",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " of",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " the",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " top",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "-level",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " files",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " as",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " requested",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " by",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " the",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " user",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " It",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " initially",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " seems",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " okay",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " to",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " list",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " them",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " plainly",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ",",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " but",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " I",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " wonder",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " if",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " I",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " should",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " include",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " markdown",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " links",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " for",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " file",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " references",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " The",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " guidelines",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " suggest",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " using",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " proper",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " markdown",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " links",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ",",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " but",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " the",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " developer",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " later",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " mentions",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " that",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " absolute",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " paths",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " should",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " be",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " used",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " for",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " clickable",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " files",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " I",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "’m",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " thinking",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " a",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " simple",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " list",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " of",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " filenames",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " in",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " code",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " format",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " might",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " be",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " best",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " to",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " avoid",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " any",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " confusion",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "**Deciding on file command**\n\nI’m considering how to list the top-level files in the current directory for the user. A good choice seems to be `find . -maxdepth 1 -type f -print | sed 's|^\\./||' | sort` since it keeps things straightforward. Although the developer mentions using `rg --files`, I think `find` is simpler for this request. I should also send a brief commentary update before executing the command to keep the user informed.",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "**Finalizing file list format**\n\nFor the final answer, I’m considering creating a concise bullet list of the top-level files as requested by the user. It initially seems okay to list them plainly, but I wonder if I should include markdown links for file references. The guidelines suggest using proper markdown links, but the developer later mentions that absolute paths should be used for clickable files. I’m thinking a simple list of filenames in code format might be best to avoid any confusion.",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "Listing",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " only",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " top",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "-level",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " files",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " from",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " `/",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "Users",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "/",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "and",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "rei",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "_",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "ivan",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "ov",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "/",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "Developer",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "/",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "1",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "code",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "`,",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " then",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " I",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "’ll",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " stop",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "kind": "search",
+        "locations": [
+          {
+            "path": "/Users/andrei_ivanov/Developer/1code/."
+          }
+        ],
+        "rawInput": {
+          "call_id": "call_77DHr5VNVo5eHWX2pNsebIvP",
+          "process_id": "75874",
+          "turn_id": "019d3baa-c2e0-7e31-861e-e4ebe4cc2569",
+          "command": [
+            "/bin/zsh",
+            "-lc",
+            "find . -maxdepth 1 -type f -print | sed 's|^\\./||' | sort"
+          ],
+          "cwd": "/Users/andrei_ivanov/Developer/1code",
+          "parsed_cmd": [
+            {
+              "type": "list_files",
+              "cmd": "find . -maxdepth 1 -type f -print",
+              "path": "."
+            }
+          ],
+          "source": "unified_exec_startup"
+        },
+        "sessionUpdate": "tool_call",
+        "status": "in_progress",
+        "title": "List /Users/andrei_ivanov/Developer/1code/.",
+        "toolCallId": "call_77DHr5VNVo5eHWX2pNsebIvP"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": [
+          {
+            "content": {
+              "text": "```sh\n.DS_Store\n.env.example\n.gitignore\nAGENTS.md\nbun.lock\nbun.lockb\nCLAUDE.md\nCONTRIBUTING.md\ndrizzle.config.ts\nelectron-builder.yml\nelectron-shim.js\nelectron.vite.config.ts\nLICENSE\npackage.json\nplaywright.config.ts\npostcss.config.js\nREADME.md\ntailwind.config.js\ntsconfig.json\n```\n",
+              "type": "text"
+            },
+            "type": "content"
+          }
+        ],
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "call_77DHr5VNVo5eHWX2pNsebIvP"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "rawOutput": {
+          "call_id": "call_77DHr5VNVo5eHWX2pNsebIvP",
+          "process_id": "75874",
+          "turn_id": "019d3baa-c2e0-7e31-861e-e4ebe4cc2569",
+          "command": [
+            "/bin/zsh",
+            "-lc",
+            "find . -maxdepth 1 -type f -print | sed 's|^\\./||' | sort"
+          ],
+          "cwd": "/Users/andrei_ivanov/Developer/1code",
+          "parsed_cmd": [
+            {
+              "type": "list_files",
+              "cmd": "find . -maxdepth 1 -type f -print",
+              "path": "."
+            }
+          ],
+          "source": "unified_exec_startup",
+          "stdout": ".DS_Store\n.env.example\n.gitignore\nAGENTS.md\nbun.lock\nbun.lockb\nCLAUDE.md\nCONTRIBUTING.md\ndrizzle.config.ts\nelectron-builder.yml\nelectron-shim.js\nelectron.vite.config.ts\nLICENSE\npackage.json\nplaywright.config.ts\npostcss.config.js\nREADME.md\ntailwind.config.js\ntsconfig.json\n",
+          "stderr": "",
+          "aggregated_output": ".DS_Store\n.env.example\n.gitignore\nAGENTS.md\nbun.lock\nbun.lockb\nCLAUDE.md\nCONTRIBUTING.md\ndrizzle.config.ts\nelectron-builder.yml\nelectron-shim.js\nelectron.vite.config.ts\nLICENSE\npackage.json\nplaywright.config.ts\npostcss.config.js\nREADME.md\ntailwind.config.js\ntsconfig.json\n",
+          "exit_code": 0,
+          "duration": {
+            "secs": 0,
+            "nanos": 347598584
+          },
+          "formatted_output": ".DS_Store\n.env.example\n.gitignore\nAGENTS.md\nbun.lock\nbun.lockb\nCLAUDE.md\nCONTRIBUTING.md\ndrizzle.config.ts\nelectron-builder.yml\nelectron-shim.js\nelectron.vite.config.ts\nLICENSE\npackage.json\nplaywright.config.ts\npostcss.config.js\nREADME.md\ntailwind.config.js\ntsconfig.json\n",
+          "status": "completed"
+        },
+        "sessionUpdate": "tool_call_update",
+        "status": "completed",
+        "toolCallId": "call_77DHr5VNVo5eHWX2pNsebIvP"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "\n\n",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "**Crafting a concise response**\n\nI",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " need",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " to",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " provide",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " a",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " final",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " answer",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " that's",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " clear",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " and",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " concise",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " I",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "’m",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " considering",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " just",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " listing",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " names",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " and",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " starting",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " with",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " \"",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "Top",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "-level",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " files",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ":\"",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " in",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " a",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " code",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " block",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " for",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " simplicity",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " The",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " AG",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "ENTS",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " suggest",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " proper",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " markdown",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " links",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ",",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " but",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " since",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " the",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " user",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " just",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " wants",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " a",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " list",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ",",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " I",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " think",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " a",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " code",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " block",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " without",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " nesting",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " will",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " work",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " best",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " I",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " want",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " to",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " ensure",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " it",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " includes",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " hidden",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " files",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " like",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " .",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "DS",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "_",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "Store",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ",",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " .",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "env",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".example",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ",",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " and",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " .",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "git",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "ignore",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " Keeping",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " it",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " minimal",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " sounds",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " like",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " the",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " way",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " to",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " go",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "!",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_thought_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "Top",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "-level",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " files",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " in",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": " `/",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "Users",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "/",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "and",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "rei",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "_",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "ivan",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "ov",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "/",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "Developer",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "/",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "1",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "code",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "`",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ":\n\n",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "```",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "text",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "\n",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".D",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "S",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "_",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "Store",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "\n",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".env",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".example",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "\n",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".git",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "ignore",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "\n",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "AG",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "ENTS",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".md",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "\n",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "bun",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".lock",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "\n",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "bun",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".lock",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "b",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "\n",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "CLA",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "U",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "DE",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".md",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "\n",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "CON",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "TR",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "IBUT",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "ING",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".md",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "\n",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "dr",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "izzle",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".config",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".ts",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "\n",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "electron",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "-builder",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".yml",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "\n",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "electron",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "-sh",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "im",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".js",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "\n",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "electron",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".v",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "ite",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".config",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".ts",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "\n",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "LICENSE",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "\n",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "package",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".json",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "\n",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "play",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "wright",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".config",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".ts",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "\n",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "post",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "css",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".config",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".js",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "\n",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "README",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".md",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "\n",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "tail",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "wind",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".config",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".js",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "\n",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "ts",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "config",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": ".json",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "\n",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    },
+    {
+      "sessionId": "019d3baa-c2ce-7e80-96c9-9748f53fdb80",
+      "update": {
+        "content": {
+          "text": "```",
+          "type": "text"
+        },
+        "sessionUpdate": "agent_message_chunk"
+      }
+    }
+  ],
+  "response": {
+    "stopReason": "end_turn"
+  }
+}

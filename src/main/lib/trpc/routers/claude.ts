@@ -810,7 +810,8 @@ export const claudeRouter = router({
             baseUrl: z.string().min(1),
           })
           .optional(),
-        maxThinkingTokens: z.number().optional(), // Enable extended thinking
+        effort: z.enum(["low", "medium", "high", "max"]).optional(),
+        maxThinkingTokens: z.number().optional(), // Enable extended thinking (deprecated, use effort)
         images: z.array(imageAttachmentSchema).optional(), // Image attachments
         historyEnabled: z.boolean().optional(),
         offlineModeEnabled: z.boolean().optional(), // Whether offline mode (Ollama) is enabled in settings
@@ -850,13 +851,15 @@ export const claudeRouter = router({
           try {
             emit.next(chunk)
             return true
-          } catch {
+          } catch (emitErr) {
+            console.warn(`[SD] M:EMIT_DIED sub=${subId} type=${(chunk as any)?.type} n=${chunkCount} err=${emitErr}`)
             isObservableActive = false
             return false
           }
         }
 
-        // Helper to safely complete (no-op if already closed)
+        // Always attempt complete even if safeEmit died - the renderer
+        // must receive onComplete to reset useChat status from "streaming".
         const safeComplete = () => {
           try {
             emit.complete()
@@ -1993,6 +1996,7 @@ ${prompt}
                 ...(!resumeSessionId && { continue: true }),
                 ...(resolvedModel && { model: resolvedModel }),
                 // fallbackModel: "claude-opus-4-5-20251101",
+                ...(input.effort && { effort: input.effort }),
                 ...(input.maxThinkingTokens && {
                   maxThinkingTokens: input.maxThinkingTokens,
                 }),
@@ -2544,28 +2548,6 @@ ${prompt}
                   errorCategory = "NETWORK_ERROR"
                 }
 
-                // Track error in Sentry (only if app is ready and Sentry is available)
-                if (app.isReady() && app.isPackaged) {
-                  try {
-                    const Sentry = await import("@sentry/electron/main")
-                    Sentry.captureException(err, {
-                      tags: {
-                        errorCategory,
-                        mode: input.mode,
-                      },
-                      extra: {
-                        context: errorContext,
-                        cwd: input.cwd,
-                        stderr: stderrOutput || "(no stderr captured)",
-                        chatId: input.chatId,
-                        subChatId: input.subChatId,
-                      },
-                    })
-                  } catch {
-                    // Sentry not available or failed to import - ignore
-                  }
-                }
-
                 // Send error with stderr output to frontend (only if not aborted by user)
                 if (!abortController.signal.aborted) {
                   safeEmit({
@@ -2732,6 +2714,16 @@ ${prompt}
             safeComplete()
           } finally {
             activeSessions.delete(input.subChatId)
+            // Always abort the SDK process when the async function exits.
+            // The cleanup callback (below) only fires on unsubscribe, but
+            // if emit.complete() succeeds on the server while IPC delivery
+            // to the renderer fails, cleanup never runs and the SDK process
+            // becomes orphaned.
+            if (!abortController.signal.aborted) {
+              console.log(`[SD] M:ABORT_ORPHAN sub=${subId}`)
+              abortController.abort()
+            }
+            clearPendingApprovals("Session ended.", input.subChatId)
           }
         })()
 

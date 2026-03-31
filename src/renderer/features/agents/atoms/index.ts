@@ -8,6 +8,7 @@ import {
   SEEDED_CODEX_MODELS,
   type ClaudeModelOption,
   type CodexModelOption,
+  type ClaudeEffortLevel,
 } from "../lib/models"
 
 // Agent mode type - extensible for future modes like "debug"
@@ -314,7 +315,7 @@ export const subChatCodexModelIdAtomFamily = atomFamily((subChatId: string) =>
 
 // Storage for per-subChat Codex thinking level.
 // Falls back to lastSelectedCodexThinkingAtom when sub-chat has no explicit selection yet.
-const subChatCodexThinkingStorageAtom = atomWithStorage<
+export const subChatCodexThinkingStorageAtom = atomWithStorage<
   Record<string, CodexThinkingPreference>
 >(
   "agents:subChatCodexThinking",
@@ -340,6 +341,40 @@ export const subChatCodexThinkingAtomFamily = atomFamily((subChatId: string) =>
       const current = get(subChatCodexThinkingStorageAtom)
       if (current[subChatId] === newThinking) return
       set(subChatCodexThinkingStorageAtom, { ...current, [subChatId]: newThinking })
+    },
+  ),
+)
+
+// Claude effort level (reasoning effort passed to SDK)
+// Replaces the old binary extended-thinking toggle with a granular level selector
+export const lastSelectedClaudeEffortAtom = atomWithStorage<ClaudeEffortLevel>(
+  "agents:lastSelectedClaudeEffort",
+  "high",
+  undefined,
+  { getOnInit: true },
+)
+
+const subChatClaudeEffortStorageAtom = atomWithStorage<Record<string, ClaudeEffortLevel>>(
+  "agents:subChatClaudeEffort",
+  {},
+  undefined,
+  { getOnInit: true },
+)
+
+export const subChatClaudeEffortAtomFamily = atomFamily((subChatId: string) =>
+  atom(
+    (get) => {
+      if (!subChatId) return get(lastSelectedClaudeEffortAtom)
+      return get(subChatClaudeEffortStorageAtom)[subChatId] ?? get(lastSelectedClaudeEffortAtom)
+    },
+    (get, set, newEffort: ClaudeEffortLevel) => {
+      if (!subChatId) {
+        set(lastSelectedClaudeEffortAtom, newEffort)
+        return
+      }
+      const current = get(subChatClaudeEffortStorageAtom)
+      if (current[subChatId] === newEffort) return
+      set(subChatClaudeEffortStorageAtom, { ...current, [subChatId]: newEffort })
     },
   ),
 )

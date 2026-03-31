@@ -9,6 +9,7 @@ import {
 	gitSwitchBranch,
 } from "./security";
 import { createGit, createGitForNetwork, withGitLock, withLockRetry } from "./git-factory";
+import { shouldSkipGitStatus } from "./status";
 
 /** Regex for valid branch names */
 const BRANCH_NAME_REGEX = /^[a-zA-Z0-9._/-]+$/;
@@ -30,6 +31,9 @@ export const createBranchesRouter = () => {
 					checkedOutBranches: Record<string, string>;
 				}> => {
 					assertRegisteredWorktree(input.worktreePath);
+					if (shouldSkipGitStatus(input.worktreePath)) {
+						return { current: "", local: [], remote: [], defaultBranch: "main", checkedOutBranches: {} };
+					}
 					const git = createGit(input.worktreePath);
 					const branchSummary = await git.branch(["-a"]);
 

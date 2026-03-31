@@ -2,7 +2,8 @@
 
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { useAtom, useAtomValue, useSetAtom } from "jotai"
-import { AlignJustify, Plus } from "lucide-react"
+import { AlignJustify, Plus, Folder as FolderIcon } from "lucide-react"
+import * as LucideIcons from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { Button } from "../../../components/ui/button"
@@ -34,6 +35,7 @@ import {
   justCreatedIdsAtom,
   lastSelectedAgentIdAtom,
   lastSelectedCodexModelIdAtom,
+  lastSelectedClaudeEffortAtom,
   lastSelectedCodexThinkingAtom,
   lastSelectedBranchesAtom,
   lastSelectedModelIdAtom,
@@ -55,7 +57,6 @@ const selectedTeamIdAtom = atom<string | null>(null)
 import {
   agentsSettingsDialogOpenAtom,
   agentsSettingsDialogActiveTabAtom,
-  extendedThinkingEnabledAtom,
   showOfflineModeFeaturesAtom,
   selectedOllamaModelAtom,
   customHotkeysAtom,
@@ -87,6 +88,7 @@ import {
   type AgentsMentionsEditorHandle,
   type FileMentionOption,
 } from "../mentions"
+import { AgentsSkillMention } from "../mentions/agents-skill-mention"
 import { AgentFileItem } from "../ui/agent-file-item"
 import { AgentImageItem } from "../ui/agent-image-item"
 import { AgentPastedTextItem } from "../ui/agent-pasted-text-item"
@@ -166,6 +168,14 @@ const agents = [
   { id: "codex", name: "OpenAI Codex" },
 ]
 
+/** Inline Lucide icon resolved by name */
+function FolderIconInline({ name, color }: { name: string; color: string }) {
+  const pascalName = name.split("-").map((s) => s.charAt(0).toUpperCase() + s.slice(1)).join("")
+  const Icon = (LucideIcons as Record<string, unknown>)[pascalName]
+  const Comp = (Icon && (typeof Icon === "function" || typeof Icon === "object")) ? (Icon as React.ComponentType<{ className?: string; style?: React.CSSProperties }>) : FolderIcon
+  return <Comp className="h-3.5 w-3.5 flex-shrink-0" style={{ color }} />
+}
+
 interface NewChatFormProps {
   isMobileFullscreen?: boolean
   onBackToChats?: () => void
@@ -230,6 +240,8 @@ export function NewChatForm({
     setAgentMode(getNextMode)
   }, [])
   const [workMode, setWorkMode] = useAtom(lastSelectedWorkModeAtom)
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
+  const { data: foldersData } = trpc.folders.list.useQuery()
   const debugMode = useAtomValue(agentsDebugModeAtom)
   const codexModels = useAtomValue(codexModelCatalogAtom)
   const setSettingsDialogOpen = useSetAtom(agentsSettingsDialogOpenAtom)
@@ -308,9 +320,7 @@ export function NewChatForm({
   const [lastSelectedCodexThinking, setLastSelectedCodexThinking] = useAtom(
     lastSelectedCodexThinkingAtom,
   )
-  const [thinkingEnabled, setThinkingEnabled] = useAtom(
-    extendedThinkingEnabledAtom,
-  )
+  const [selectedEffort, setSelectedEffort] = useAtom(lastSelectedClaudeEffortAtom)
 
   const [selectedModel, setSelectedModel] = useState(
     () =>
@@ -492,9 +502,13 @@ export function NewChatForm({
 
   // Mention subpage navigation state
   const [showingFilesList, setShowingFilesList] = useState(false)
-  const [showingSkillsList, setShowingSkillsList] = useState(false)
   const [showingAgentsList, setShowingAgentsList] = useState(false)
   const [showingToolsList, setShowingToolsList] = useState(false)
+
+  // $ skill dropdown state
+  const [showSkillDropdown, setShowSkillDropdown] = useState(false)
+  const [skillSearchText, setSkillSearchText] = useState("")
+  const [skillPosition, setSkillPosition] = useState({ top: 0, left: 0 })
 
   // Slash command dropdown state
   const [showSlashDropdown, setShowSlashDropdown] = useState(false)
@@ -1195,6 +1209,7 @@ export function NewChatForm({
         workMode === "worktree" ? selectedBranchType : undefined,
       useWorktree: workMode === "worktree",
       mode: agentMode,
+      folderId: selectedFolderId || undefined,
     })
     // Editor, images, files, and pasted texts are cleared in onSuccess callback
   }, [
@@ -1220,10 +1235,6 @@ export function NewChatForm({
         setShowingFilesList(true)
         return
       }
-      if (mention.id === "skills") {
-        setShowingSkillsList(true)
-        return
-      }
       if (mention.id === "agents") {
         setShowingAgentsList(true)
         return
@@ -1237,9 +1248,7 @@ export function NewChatForm({
     // Otherwise: insert mention as normal
     editorRef.current?.insertMention(mention)
     setShowMentionDropdown(false)
-    // Reset subpage state
     setShowingFilesList(false)
-    setShowingSkillsList(false)
     setShowingAgentsList(false)
     setShowingToolsList(false)
   }, [])
@@ -1304,7 +1313,6 @@ export function NewChatForm({
         setMentionPosition({ top: rect.top, left: rect.left })
         // Reset subpage state when opening dropdown
         setShowingFilesList(false)
-        setShowingSkillsList(false)
         setShowingAgentsList(false)
         setShowingToolsList(false)
         setShowMentionDropdown(true)
@@ -1315,11 +1323,22 @@ export function NewChatForm({
 
   const handleCloseTrigger = useCallback(() => {
     setShowMentionDropdown(false)
-    // Reset subpage state when closing
     setShowingFilesList(false)
-    setShowingSkillsList(false)
     setShowingAgentsList(false)
     setShowingToolsList(false)
+  }, [])
+
+  const handleDollarTrigger = useCallback(
+    ({ searchText, rect }: { searchText: string; rect: DOMRect }) => {
+      setSkillSearchText(searchText)
+      setSkillPosition({ top: rect.top, left: rect.left })
+      setShowSkillDropdown(true)
+    },
+    [],
+  )
+
+  const handleCloseDollarTrigger = useCallback(() => {
+    setShowSkillDropdown(false)
   }, [])
 
   // Slash command handlers
@@ -1660,12 +1679,14 @@ export function NewChatForm({
                       ref={editorRef}
                       onTrigger={handleMentionTrigger}
                       onCloseTrigger={handleCloseTrigger}
+                      onDollarTrigger={handleDollarTrigger}
+                      onCloseDollarTrigger={handleCloseDollarTrigger}
                       onSlashTrigger={handleSlashTrigger}
                       onCloseSlashTrigger={handleCloseSlashTrigger}
                       onContentChange={handleContentChange}
                       onSubmit={handleSend}
                       onShiftTab={toggleMode}
-                      placeholder="Plan, @ for context, / for commands"
+                      placeholder="Plan, @ context, $ skills, / commands"
                       className={cn(
                         "bg-transparent max-h-[240px] overflow-y-auto p-1",
                         isMobileFullscreen ? "min-h-[56px]" : "min-h-[44px]",
@@ -1879,8 +1900,8 @@ export function NewChatForm({
                             selectedOllamaModel: currentOllamaModel,
                             recommendedOllamaModel: availableModels.recommendedModel,
                             onSelectOllamaModel: setSelectedOllamaModel,
-                            thinkingEnabled,
-                            onThinkingChange: setThinkingEnabled,
+                            effort: selectedEffort,
+                            onEffortChange: setSelectedEffort,
                           }}
                           codex={{
                             models: codexModels,
@@ -1957,6 +1978,30 @@ export function NewChatForm({
                 {/* Project, Work Mode, and Branch selectors - directly under input */}
                 <div className="mt-1.5 md:mt-2 ml-[5px] flex items-center gap-2">
                   <ProjectSelector />
+
+                  {/* Folder selector */}
+                  {foldersData && foldersData.length > 0 && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm" className="h-7 px-2 gap-1 text-xs text-muted-foreground hover:text-foreground">
+                          <FolderIconInline name={foldersData.find((f) => f.id === selectedFolderId)?.icon ?? "inbox"} color={foldersData.find((f) => f.id === selectedFolderId)?.color ?? "#6b7280"} />
+                          <span className="max-w-[80px] truncate">{foldersData.find((f) => f.id === selectedFolderId)?.name ?? "Uncategorized"}</span>
+                          <IconChevronDown className="h-3 w-3 opacity-50" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        {foldersData.map((f) => (
+                          <DropdownMenuItem key={f.id} onClick={() => setSelectedFolderId(f.id)}>
+                            <FolderIconInline name={f.icon} color={f.color} />
+                            <span className="ml-2">{f.name}</span>
+                            {(selectedFolderId === f.id || (!selectedFolderId && f.id === "system_uncategorized")) && (
+                              <CheckIcon className="h-3.5 w-3.5 ml-auto" />
+                            )}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
 
                   {/* Work mode selector - between project and branch */}
                   {validatedProject && (
@@ -2135,9 +2180,7 @@ export function NewChatForm({
                   isOpen={showMentionDropdown && !!validatedProject}
                   onClose={() => {
                     setShowMentionDropdown(false)
-                    // Reset subpage state when dropdown closes
                     setShowingFilesList(false)
-                    setShowingSkillsList(false)
                     setShowingAgentsList(false)
                     setShowingToolsList(false)
                   }}
@@ -2146,9 +2189,21 @@ export function NewChatForm({
                   position={mentionPosition}
                   projectPath={validatedProject?.path}
                   showingFilesList={showingFilesList}
-                  showingSkillsList={showingSkillsList}
                   showingAgentsList={showingAgentsList}
                   showingToolsList={showingToolsList}
+                />
+
+                {/* Skills dropdown ($ trigger) */}
+                <AgentsSkillMention
+                  isOpen={showSkillDropdown}
+                  onClose={() => setShowSkillDropdown(false)}
+                  onSelect={(mention) => {
+                    editorRef.current?.insertMention(mention)
+                    setShowSkillDropdown(false)
+                  }}
+                  searchText={skillSearchText}
+                  position={skillPosition}
+                  projectPath={validatedProject?.path}
                 />
 
                 {/* Slash command dropdown */}

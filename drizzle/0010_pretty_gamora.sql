@@ -1,0 +1,1 @@
+ALTER TABLE `projects` ADD `skip_git_status` integer DEFAULT false;

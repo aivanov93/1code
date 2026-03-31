@@ -69,6 +69,8 @@ type AgentsMentionsEditorProps = {
   initialValue?: string // optional initial content
   onTrigger: (payload: TriggerPayload) => void
   onCloseTrigger: () => void
+  onDollarTrigger?: (payload: TriggerPayload) => void // $ skill trigger
+  onCloseDollarTrigger?: () => void
   onSlashTrigger?: (payload: TriggerPayload) => void // Slash command trigger
   onCloseSlashTrigger?: () => void // Close slash command dropdown
   onContentChange?: (hasContent: boolean) => void // lightweight callback for send button state
@@ -270,6 +272,8 @@ interface TreeWalkResult {
   textBeforeCursor: string
   atPosition: { node: Node; offset: number } | null
   atIndex: number
+  dollarPosition: { node: Node; offset: number } | null
+  dollarIndex: number
   // Slash command trigger info
   slashPosition: { node: Node; offset: number } | null
   slashIndex: number
@@ -282,6 +286,8 @@ function walkTreeOnce(root: HTMLElement, range: Range | null): TreeWalkResult {
   let reachedCursor = false
   let atPosition: { node: Node; offset: number } | null = null
   let atIndex = -1
+  let dollarPosition: { node: Node; offset: number } | null = null
+  let dollarIndex = -1
   let slashPosition: { node: Node; offset: number } | null = null
   let slashIndex = -1
 
@@ -351,6 +357,22 @@ function walkTreeOnce(root: HTMLElement, range: Range | null): TreeWalkResult {
           }
         }
 
+        // Find $ in text before cursor (skills trigger)
+        const localDollarIdx = textBeforeInNode.lastIndexOf("$")
+        if (localDollarIdx !== -1) {
+          const globalDollarIdx = serialized.length + localDollarIdx
+          const textUpToDollar = serialized + textBeforeInNode.slice(0, localDollarIdx)
+          const charBeforeDollar = globalDollarIdx > 0 ? textUpToDollar.charAt(globalDollarIdx - 1) : null
+          const isStandaloneDollar = charBeforeDollar === null || /\s/.test(charBeforeDollar)
+          if (isStandaloneDollar && globalDollarIdx > dollarIndex) {
+            const afterDollar = textBeforeCursor.slice(textBeforeCursor.lastIndexOf("$") + 1)
+            if (!afterDollar.includes("\n") && !afterDollar.includes("  ")) {
+              dollarIndex = globalDollarIdx
+              dollarPosition = { node, offset: localDollarIdx }
+            }
+          }
+        }
+
         // Find / at start of line (for slash commands)
         // Check all occurrences of / in this node
         for (let i = 0; i < textBeforeInNode.length; i++) {
@@ -391,6 +413,17 @@ function walkTreeOnce(root: HTMLElement, range: Range | null): TreeWalkResult {
           if (isStandaloneAt) {
             atIndex = globalAtIdx
             atPosition = { node, offset: localAtIdx }
+          }
+        }
+        // Track $ positions as we go
+        const localDollarIdx = text.lastIndexOf("$")
+        if (localDollarIdx !== -1) {
+          const globalDollarIdx = serialized.length + localDollarIdx
+          const textUpToDollar = serialized + text.slice(0, localDollarIdx)
+          const charBeforeDollar = globalDollarIdx > 0 ? textUpToDollar.charAt(globalDollarIdx - 1) : null
+          if (charBeforeDollar === null || /\s/.test(charBeforeDollar)) {
+            dollarIndex = globalDollarIdx
+            dollarPosition = { node, offset: localDollarIdx }
           }
         }
       }
@@ -471,6 +504,15 @@ function walkTreeOnce(root: HTMLElement, range: Range | null): TreeWalkResult {
     }
   }
 
+  // Validate $ trigger - close on newline or double-space
+  if (dollarIndex !== -1) {
+    const afterDollar = textBeforeCursor.slice(dollarIndex + 1)
+    if (afterDollar.includes("\n") || afterDollar.includes("  ")) {
+      dollarIndex = -1
+      dollarPosition = null
+    }
+  }
+
   // Validate / trigger - check if space/newline after it
   if (slashIndex !== -1) {
     const afterSlash = textBeforeCursor.slice(slashIndex + 1)
@@ -485,6 +527,8 @@ function walkTreeOnce(root: HTMLElement, range: Range | null): TreeWalkResult {
     textBeforeCursor,
     atPosition,
     atIndex,
+    dollarPosition,
+    dollarIndex,
     slashPosition,
     slashIndex,
   }
@@ -498,6 +542,8 @@ export const AgentsMentionsEditor = memo(
         initialValue,
         onTrigger,
         onCloseTrigger,
+        onDollarTrigger,
+        onCloseDollarTrigger,
         onSlashTrigger,
         onCloseSlashTrigger,
         onContentChange,
@@ -516,6 +562,9 @@ export const AgentsMentionsEditor = memo(
       const editorRef = useRef<HTMLDivElement>(null)
       const triggerActive = useRef(false)
       const triggerStartIndex = useRef<number | null>(null)
+      // $ skill trigger state
+      const dollarTriggerActive = useRef(false)
+      const dollarTriggerStartIndex = useRef<number | null>(null)
       // Slash command trigger state
       const slashTriggerActive = useRef(false)
       const slashTriggerStartIndex = useRef<number | null>(null)
@@ -840,6 +889,11 @@ export const AgentsMentionsEditor = memo(
             triggerStartIndex.current = null
             onCloseTrigger()
           }
+          if (dollarTriggerActive.current) {
+            dollarTriggerActive.current = false
+            dollarTriggerStartIndex.current = null
+            onCloseDollarTrigger?.()
+          }
           if (slashTriggerActive.current) {
             slashTriggerActive.current = false
             slashTriggerStartIndex.current = null
@@ -869,6 +923,11 @@ export const AgentsMentionsEditor = memo(
               triggerStartIndex.current = null
               onCloseTrigger()
             }
+            if (dollarTriggerActive.current) {
+              dollarTriggerActive.current = false
+              dollarTriggerStartIndex.current = null
+              onCloseDollarTrigger?.()
+            }
             if (slashTriggerActive.current) {
               slashTriggerActive.current = false
               slashTriggerStartIndex.current = null
@@ -877,46 +936,44 @@ export const AgentsMentionsEditor = memo(
             return
           }
 
-          // Single tree walk for @ and / trigger detection
+          // Single tree walk for @, $, and / trigger detection
           const {
             textBeforeCursor,
             atPosition,
             atIndex,
+            dollarPosition,
+            dollarIndex,
             slashPosition,
             slashIndex,
           } = walkTreeOnce(editorRef.current, range)
 
-          // Handle @ trigger (takes priority over /)
+          // Helper: build DOMRect at cursor position for dropdown placement
+          const getCursorRect = (): DOMRect | null => {
+            if (!range || !editorRef.current) return null
+            const tempRange = document.createRange()
+            tempRange.setStart(range.endContainer, range.endOffset)
+            tempRange.setEnd(range.endContainer, range.endOffset)
+            const r = tempRange.getBoundingClientRect()
+            return new DOMRect(r.left, r.top, 0, r.height)
+          }
+
+          // Handle @ trigger (takes priority over $ and /)
           if (atIndex !== -1 && atPosition) {
             triggerActive.current = true
             triggerStartIndex.current = atIndex
-
-            // Close slash trigger if active
+            if (dollarTriggerActive.current) {
+              dollarTriggerActive.current = false
+              dollarTriggerStartIndex.current = null
+              onCloseDollarTrigger?.()
+            }
             if (slashTriggerActive.current) {
               slashTriggerActive.current = false
               slashTriggerStartIndex.current = null
               onCloseSlashTrigger?.()
             }
-
-            const afterAt = textBeforeCursor.slice(atIndex + 1)
-
-            // Get position for dropdown
-            // Use cursor position for vertical, parent container left edge for horizontal alignment
-            if (range && editorRef.current) {
-              const tempRange = document.createRange()
-              tempRange.setStart(range.endContainer, range.endOffset)
-              tempRange.setEnd(range.endContainer, range.endOffset)
-              const cursorRect = tempRange.getBoundingClientRect()
-
-              // Use CURSOR position - menu should appear under cursor, not at text start
-              const rect = new DOMRect(
-                cursorRect.left,   // Use actual cursor position for horizontal
-                cursorRect.top,    // Use cursor top for vertical position
-                0,
-                cursorRect.height
-              )
-
-              onTrigger({ searchText: afterAt, rect })
+            const rect = getCursorRect()
+            if (rect) {
+              onTrigger({ searchText: textBeforeCursor.slice(atIndex + 1), rect })
               return
             }
           }
@@ -928,30 +985,36 @@ export const AgentsMentionsEditor = memo(
             onCloseTrigger()
           }
 
-          // Handle / trigger (only if @ trigger is not active)
+          // Handle $ trigger (skills, priority over /)
+          if (dollarIndex !== -1 && dollarPosition && onDollarTrigger) {
+            dollarTriggerActive.current = true
+            dollarTriggerStartIndex.current = dollarIndex
+            if (slashTriggerActive.current) {
+              slashTriggerActive.current = false
+              slashTriggerStartIndex.current = null
+              onCloseSlashTrigger?.()
+            }
+            const rect = getCursorRect()
+            if (rect) {
+              onDollarTrigger({ searchText: textBeforeCursor.slice(dollarIndex + 1), rect })
+              return
+            }
+          }
+
+          // Close $ trigger if no $ found
+          if (dollarTriggerActive.current) {
+            dollarTriggerActive.current = false
+            dollarTriggerStartIndex.current = null
+            onCloseDollarTrigger?.()
+          }
+
+          // Handle / trigger (only if @ and $ triggers are not active)
           if (slashIndex !== -1 && slashPosition && onSlashTrigger) {
             slashTriggerActive.current = true
             slashTriggerStartIndex.current = slashIndex
-
-            const afterSlash = textBeforeCursor.slice(slashIndex + 1)
-
-            // Get position for dropdown
-            // Use cursor position for vertical, parent container left edge for horizontal alignment
-            if (range && editorRef.current) {
-              const tempRange = document.createRange()
-              tempRange.setStart(range.endContainer, range.endOffset)
-              tempRange.setEnd(range.endContainer, range.endOffset)
-              const cursorRect = tempRange.getBoundingClientRect()
-
-              // Use CURSOR position - menu should appear under cursor, not at text start
-              const rect = new DOMRect(
-                cursorRect.left,   // Use actual cursor position for horizontal
-                cursorRect.top,    // Use cursor top for vertical position
-                0,
-                cursorRect.height
-              )
-
-              onSlashTrigger({ searchText: afterSlash, rect })
+            const rect = getCursorRect()
+            if (rect) {
+              onSlashTrigger({ searchText: textBeforeCursor.slice(slashIndex + 1), rect })
               return
             }
           }
@@ -971,7 +1034,7 @@ export const AgentsMentionsEditor = memo(
           cancelAnimationFrame(triggerDetectionTimeout.current)
         }
         triggerDetectionTimeout.current = requestAnimationFrame(runTriggerDetection)
-      }, [onContentChange, onTrigger, onCloseTrigger, onSlashTrigger, onCloseSlashTrigger, debouncedSaveUndoState])
+      }, [onContentChange, onTrigger, onCloseTrigger, onDollarTrigger, onCloseDollarTrigger, onSlashTrigger, onCloseSlashTrigger, debouncedSaveUndoState])
 
       // Cleanup on unmount
       useEffect(() => {
@@ -1043,7 +1106,7 @@ export const AgentsMentionsEditor = memo(
 
           // Prevent submission during IME composition (e.g., Chinese/Japanese/Korean input)
           if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-            if (triggerActive.current || slashTriggerActive.current) {
+            if (triggerActive.current || dollarTriggerActive.current || slashTriggerActive.current) {
               // Let dropdown handle Enter
               return
             }
@@ -1064,6 +1127,14 @@ export const AgentsMentionsEditor = memo(
               onCloseTrigger()
               return
             }
+            // Close skills dropdown
+            if (dollarTriggerActive.current) {
+              e.preventDefault()
+              dollarTriggerActive.current = false
+              dollarTriggerStartIndex.current = null
+              onCloseDollarTrigger?.()
+              return
+            }
             // Close command dropdown
             if (slashTriggerActive.current) {
               e.preventDefault()
@@ -1081,7 +1152,7 @@ export const AgentsMentionsEditor = memo(
             onShiftTab?.()
           }
         },
-        [onSubmit, onForceSubmit, onCloseTrigger, onCloseSlashTrigger, onShiftTab, restoreCursor, onContentChange, getCurrentState],
+        [onSubmit, onForceSubmit, onCloseTrigger, onCloseDollarTrigger, onCloseSlashTrigger, onShiftTab, restoreCursor, onContentChange, getCurrentState],
       )
 
       // Expose methods via ref (UNCONTROLLED pattern)
@@ -1140,6 +1211,8 @@ export const AgentsMentionsEditor = memo(
             onContentChange?.(false)
             triggerActive.current = false
             triggerStartIndex.current = null
+            dollarTriggerActive.current = false
+            dollarTriggerStartIndex.current = null
             slashTriggerActive.current = false
             slashTriggerStartIndex.current = null
           },
@@ -1243,17 +1316,18 @@ export const AgentsMentionsEditor = memo(
             const sel = window.getSelection()
             const range = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null
 
-            // Case 1: Triggered by @ - remove @ and search text, then insert mention
+            // Case 1: Triggered by @ or $ - remove trigger char and search text, then insert mention
+            const activeTriggerStart = triggerStartIndex.current ?? dollarTriggerStartIndex.current
             if (
               range &&
               range.startContainer.nodeType === Node.TEXT_NODE &&
-              triggerStartIndex.current !== null
+              activeTriggerStart !== null
             ) {
               const node = range.startContainer
               const text = node.textContent || ""
 
-              // Find local position of @ within THIS text node
-              let localAtPosition = 0
+              // Find local position of trigger char within THIS text node
+              let localTriggerPosition = 0
               let serializedCharCount = 0
 
               const walker = document.createTreeWalker(
@@ -1264,8 +1338,7 @@ export const AgentsMentionsEditor = memo(
 
               while (walkNode) {
                 if (walkNode === node) {
-                  localAtPosition =
-                    triggerStartIndex.current - serializedCharCount
+                  localTriggerPosition = activeTriggerStart - serializedCharCount
                   break
                 }
 
@@ -1287,14 +1360,14 @@ export const AgentsMentionsEditor = memo(
                 walkNode = walker.nextNode()
               }
 
-              const beforeAt = text.slice(0, localAtPosition)
+              const beforeTrigger = text.slice(0, localTriggerPosition)
               const afterCursor = text.slice(range.startOffset)
-              node.textContent = beforeAt + afterCursor
+              node.textContent = beforeTrigger + afterCursor
 
               // Insert mention node
               const mentionNode = createMentionNode(option)
               const newRange = document.createRange()
-              newRange.setStart(node, localAtPosition)
+              newRange.setStart(node, localTriggerPosition)
               newRange.collapse(true)
               newRange.insertNode(mentionNode)
 
@@ -1306,13 +1379,18 @@ export const AgentsMentionsEditor = memo(
               sel!.removeAllRanges()
               sel!.addRange(newRange)
 
-              // Update hasContent
               setHasContent(true)
 
-              // Close trigger
-              triggerActive.current = false
-              triggerStartIndex.current = null
-              onCloseTrigger()
+              // Close whichever trigger was active
+              if (triggerStartIndex.current !== null) {
+                triggerActive.current = false
+                triggerStartIndex.current = null
+                onCloseTrigger()
+              } else {
+                dollarTriggerActive.current = false
+                dollarTriggerStartIndex.current = null
+                onCloseDollarTrigger?.()
+              }
             }
             // Case 2: Direct insertion (e.g., from sidebar widget, drag & drop)
             else {

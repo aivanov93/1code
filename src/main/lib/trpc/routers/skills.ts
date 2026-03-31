@@ -112,13 +112,19 @@ const listSkillsProcedure = publicProcedure
       .optional(),
   )
   .query(async ({ input }) => {
-    const userSkillsDir = path.join(os.homedir(), ".claude", "skills")
-    const userSkillsPromise = scanSkillsDirectory(userSkillsDir, "user")
+    const userClaudeSkillsDir = path.join(os.homedir(), ".claude", "skills")
+    const userAgentsSkillsDir = path.join(os.homedir(), ".agents", "skills")
+    const userSkillsPromise = Promise.all([
+      scanSkillsDirectory(userClaudeSkillsDir, "user"),
+      scanSkillsDirectory(userAgentsSkillsDir, "user"),
+    ]).then(([a, b]) => [...a, ...b])
 
     let projectSkillsPromise = Promise.resolve<FileSkill[]>([])
     if (input?.cwd) {
-      const projectSkillsDir = path.join(input.cwd, ".claude", "skills")
-      projectSkillsPromise = scanSkillsDirectory(projectSkillsDir, "project", input.cwd)
+      projectSkillsPromise = Promise.all([
+        scanSkillsDirectory(path.join(input.cwd, ".claude", "skills"), "project", input.cwd),
+        scanSkillsDirectory(path.join(input.cwd, ".agents", "skills"), "project", input.cwd),
+      ]).then(([a, b]) => [...a, ...b])
     }
 
     // Discover plugin skills

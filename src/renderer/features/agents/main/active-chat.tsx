@@ -4488,7 +4488,12 @@ const ChatViewInner = memo(function ChatViewInner({
 
   // Sync status to global streaming status store for queue processing
   const setStreamingStatus = useStreamingStatusStore((s) => s.setStatus)
+  const prevStatusRef = useRef(status)
   useEffect(() => {
+    if (prevStatusRef.current !== status) {
+      console.log(`[SD] STATUS sub=${subChatId.slice(-8)} ${prevStatusRef.current} -> ${status}`)
+      prevStatusRef.current = status
+    }
     setStreamingStatus(subChatId, status as "ready" | "streaming" | "submitted" | "error")
   }, [subChatId, status, setStreamingStatus])
 

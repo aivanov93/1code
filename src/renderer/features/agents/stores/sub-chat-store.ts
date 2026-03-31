@@ -14,6 +14,7 @@ export interface SubChatMeta {
   name: string
   created_at?: string
   updated_at?: string
+  position?: string // fractional index for manual ordering
   mode?: "plan" | "agent"
 }
 
@@ -266,7 +267,6 @@ export const useAgentSubChatStore = create<AgentSubChatStore>((set, get) => ({
     const { allSubChats } = get()
     if (allSubChats.some((sc) => sc.id === subChat.id)) return
     set({ allSubChats: [...allSubChats, subChat] })
-    // No localStorage persistence - allSubChats is rebuilt from DB + open IDs on init
   },
 
   updateSubChatName: (subChatId, name) => {

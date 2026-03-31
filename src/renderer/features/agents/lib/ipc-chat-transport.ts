@@ -1,4 +1,3 @@
-import * as Sentry from "@sentry/electron/renderer"
 import type { ChatTransport, UIMessage } from "ai"
 import { toast } from "sonner"
 import {
@@ -6,7 +5,6 @@ import {
   agentsLoginModalOpenAtom,
   autoOfflineModeAtom,
   enableTasksAtom,
-  extendedThinkingEnabledAtom,
   historyEnabledAtom,
   selectedOllamaModelAtom,
   sessionInfoAtom,
@@ -21,6 +19,7 @@ import {
   expiredUserQuestionsAtom,
   pendingAuthRetryMessageAtom,
   pendingUserQuestionsAtom,
+  subChatClaudeEffortAtomFamily,
   subChatModelIdAtomFamily,
 } from "../atoms"
 import { useAgentSubChatStore } from "../stores/sub-chat-store"
@@ -158,12 +157,8 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
     const metadata = lastAssistant?.metadata as AgentMessageMetadata | undefined
     const sessionId = metadata?.sessionId
 
-    // Read extended thinking setting dynamically (so toggle applies to existing chats)
-    const thinkingEnabled = appStore.get(extendedThinkingEnabledAtom)
-    // Max thinking tokens for extended thinking mode
-    // SDK adds +1 internally, so 64000 becomes 64001 which exceeds Opus 4.5 limit
-    // Using 32000 to stay safely under the 64000 max output tokens limit
-    const maxThinkingTokens = thinkingEnabled ? 32_000 : undefined
+    // Read effort level dynamically per sub-chat
+    const effort = appStore.get(subChatClaudeEffortAtomFamily(this.config.subChatId))
     const historyEnabled = appStore.get(historyEnabledAtom)
     const enableTasks = appStore.get(enableTasksAtom)
 
@@ -197,8 +192,32 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
       `[SD] R:START sub=${subId} cwd=${this.config.cwd} projectPath=${this.config.projectPath || "(not set)"} model=${modelString}`,
     )
 
+    // Shared ref so cancel() callback can unsubscribe the tRPC sub
+    let activeSub: { unsubscribe: () => void } | null = null
+    let activeStaleTimer: ReturnType<typeof setInterval> | null = null
+
     return new ReadableStream({
       start: (controller) => {
+        // Stale stream detection + diagnostics: log gaps and auto-close
+        // if no chunks arrive for 60s.
+        const STALE_TIMEOUT_MS = 60_000
+        const streamStartedAt = Date.now()
+        let lastChunkAt = Date.now()
+        // Track if stream was cancelled by consumer (AI SDK)
+        let streamCancelled = false
+        const staleTimer = setInterval(() => {
+          const gap = Date.now() - lastChunkAt
+          const elapsed = ((Date.now() - streamStartedAt) / 1000).toFixed(0)
+          if (gap > STALE_TIMEOUT_MS) {
+            console.warn(`[SD] R:STALE sub=${subId} gap=${(gap / 1000).toFixed(0)}s elapsed=${elapsed}s n=${chunkCount} last=${lastChunkType} - closing stream`)
+            clearInterval(staleTimer)
+            try { controller.close() } catch { /* already closed */ }
+          } else if (gap > 15_000) {
+            console.log(`[SD] R:QUIET sub=${subId} gap=${(gap / 1000).toFixed(0)}s elapsed=${elapsed}s n=${chunkCount} last=${lastChunkType}`)
+          }
+        }, 10_000)
+        activeStaleTimer = staleTimer
+
         const sub = trpcClient.claude.chat.subscribe(
           {
             subChatId: this.config.subChatId,
@@ -208,7 +227,7 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
             projectPath: this.config.projectPath, // Original project path for MCP config lookup
             mode: currentMode,
             sessionId,
-            ...(maxThinkingTokens && { maxThinkingTokens }),
+            effort,
             ...(modelString && { model: modelString }),
             ...(selectedOllamaModel && { selectedOllamaModel }),
             historyEnabled,
@@ -220,6 +239,7 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
             onData: (chunk: UIMessageChunk) => {
               chunkCount++
               lastChunkType = chunk.type
+              lastChunkAt = Date.now()
 
               // Handle AskUserQuestion - show question UI
               if (chunk.type === "ask-user-question") {
@@ -384,23 +404,6 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
                 console.error(`[SDK ERROR] Full chunk:`, JSON.stringify(chunk, null, 2))
                 console.error(`[SDK ERROR] ========================================`)
 
-                // Track error in Sentry
-                Sentry.captureException(
-                  new Error(chunk.errorText || "Claude transport error"),
-                  {
-                    tags: {
-                      errorCategory: category,
-                      mode: currentMode,
-                    },
-                    extra: {
-                      debugInfo: chunk.debugInfo,
-                      cwd: this.config.cwd,
-                      chatId: this.config.chatId,
-                      subChatId: this.config.subChatId,
-                    },
-                  },
-                )
-
                 // Build detailed error string for copying (available for ALL errors)
                 const errorDetails = [
                   `Error: ${chunk.errorText || "Unknown error"}`,
@@ -445,13 +448,21 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
 
               // Try to enqueue, but don't crash if stream is already closed
               try {
-                controller.enqueue(chunk)
+                if (!streamCancelled) controller.enqueue(chunk)
               } catch (e) {
-                // CRITICAL: Log when enqueue fails - this could explain missing chunks!
-                console.log(`[SD] R:ENQUEUE_ERR sub=${subId} type=${chunk.type} n=${chunkCount} err=${e}`)
+                if (!streamCancelled) {
+                  // Stream was closed by the AI SDK (consumer cancelled reader).
+                  // Unsubscribe tRPC to stop the server-side stream and prevent
+                  // wasting resources on chunks that can never be delivered.
+                  streamCancelled = true
+                  console.warn(`[SD] R:CONSUMER_CANCEL sub=${subId} type=${chunk.type} n=${chunkCount} - unsubscribing`)
+                  clearInterval(staleTimer)
+                  sub.unsubscribe()
+                }
               }
 
               if (chunk.type === "finish") {
+                clearInterval(staleTimer)
                 console.log(`[SD] R:FINISH sub=${subId} n=${chunkCount}`)
                 try {
                   controller.close()
@@ -461,23 +472,12 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
               }
             },
             onError: (err: Error) => {
+              clearInterval(staleTimer)
               console.log(`[SD] R:ERROR sub=${subId} n=${chunkCount} last=${lastChunkType} err=${err.message}`)
-              // Track transport errors in Sentry
-              Sentry.captureException(err, {
-                tags: {
-                  errorCategory: "TRANSPORT_ERROR",
-                  mode: currentMode,
-                },
-                extra: {
-                  cwd: this.config.cwd,
-                  chatId: this.config.chatId,
-                  subChatId: this.config.subChatId,
-                },
-              })
-
               controller.error(err)
             },
             onComplete: () => {
+              clearInterval(staleTimer)
               console.log(`[SD] R:COMPLETE sub=${subId} n=${chunkCount} last=${lastChunkType}`)
               // Note: Don't clear pending questions here - let active-chat.tsx handle it
               // via the stream stop detection effect. Clearing here causes race conditions
@@ -490,9 +490,11 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
             },
           },
         )
+        activeSub = sub
 
         // Handle abort
         options.abortSignal?.addEventListener("abort", () => {
+          clearInterval(staleTimer)
           console.log(`[SD] R:ABORT sub=${subId} n=${chunkCount} last=${lastChunkType}`)
           sub.unsubscribe()
           // trpcClient.claude.cancel.mutate({ subChatId: this.config.subChatId })
@@ -502,6 +504,12 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
             // Already closed
           }
         })
+      },
+      // Called when the consumer (AI SDK / useChat) cancels the reader
+      cancel(reason) {
+        console.warn(`[SD] R:STREAM_CANCEL sub=${subId} n=${chunkCount} last=${lastChunkType} reason=${reason}`)
+        if (activeStaleTimer) clearInterval(activeStaleTimer)
+        activeSub?.unsubscribe()
       },
     })
   }

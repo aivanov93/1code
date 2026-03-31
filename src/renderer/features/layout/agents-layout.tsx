@@ -356,7 +356,7 @@ export function AgentsLayout() {
           initialWidth={0}
           exitWidth={0}
           showResizeTooltip={!isSettingsView}
-          className="overflow-hidden bg-background border-r"
+          className="overflow-hidden bg-sidebar border-r"
           style={{ borderRightWidth: "0.5px" }}
         >
           {isSettingsView ? (

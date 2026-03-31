@@ -20,7 +20,6 @@ import {
 import {
   getDefaultCodexModel,
   normalizeCodexThinkingSelection,
-  type CodexThinkingLevel,
 } from "./models"
 import { useAgentSubChatStore } from "../stores/sub-chat-store"
 import type { AgentMessageMetadata } from "../ui/agent-message-usage"
@@ -87,7 +86,6 @@ async function resolveCodexCredentialsForAuthError(): Promise<{
 function getSelectedCodexModel(subChatId: string): string {
   const codexModels = appStore.get(codexModelCatalogAtom)
   const selectedModelId = appStore.get(subChatCodexModelIdAtomFamily(subChatId))
-  const selectedThinking = appStore.get(subChatCodexThinkingAtomFamily(subChatId))
   const selectedModel =
     codexModels.find((model) => model.slug === selectedModelId) ||
     getDefaultCodexModel(codexModels)
@@ -96,16 +94,10 @@ function getSelectedCodexModel(subChatId: string): string {
     return DEFAULT_CODEX_MODEL
   }
 
-  const normalizedThinking = normalizeCodexThinkingSelection(
-    selectedModel,
-    selectedThinking,
-  )
+  const selectedThinking = appStore.get(subChatCodexThinkingAtomFamily(subChatId))
+  const thinking = normalizeCodexThinkingSelection(selectedModel, selectedThinking)
 
-  if (!normalizedThinking) {
-    return DEFAULT_CODEX_MODEL
-  }
-
-  return `${selectedModel.slug}/${normalizedThinking}`
+  return `${selectedModel.slug}/${thinking}`
 }
 
 export class ACPChatTransport implements ChatTransport<UIMessage> {
@@ -140,12 +132,39 @@ export class ACPChatTransport implements ChatTransport<UIMessage> {
     const codexApiKey = normalizeCodexApiKey(appStore.get(codexApiKeyAtom))
     const selectedModel = getSelectedCodexModel(this.config.subChatId)
 
+    const subId = this.config.subChatId.slice(-8)
+
+    // Shared refs for cancel() callback
+    let activeSub: { unsubscribe: () => void } | null = null
+    let activeStaleTimer: ReturnType<typeof setInterval> | null = null
+
     return new ReadableStream({
       start: (controller) => {
         const runId = crypto.randomUUID()
         let sub: { unsubscribe: () => void } | null = null
         let didUnsubscribe = false
         let forcedUnsubscribeTimer: ReturnType<typeof setTimeout> | null = null
+        let streamCancelled = false
+
+        // Stale stream detection + diagnostics (mirrors IPC transport)
+        const STALE_TIMEOUT_MS = 60_000
+        const streamStartedAt = Date.now()
+        let lastChunkAt = Date.now()
+        let chunkCount = 0
+        let lastChunkType = ""
+        const staleTimer = setInterval(() => {
+          const gap = Date.now() - lastChunkAt
+          const elapsed = ((Date.now() - streamStartedAt) / 1000).toFixed(0)
+          if (gap > STALE_TIMEOUT_MS) {
+            console.warn(`[SD] R:STALE(codex) sub=${subId} gap=${(gap / 1000).toFixed(0)}s elapsed=${elapsed}s n=${chunkCount} last=${lastChunkType} - closing stream`)
+            clearInterval(staleTimer)
+            try { controller.close() } catch { /* already closed */ }
+          } else if (gap > 15_000) {
+            console.log(`[SD] R:QUIET(codex) sub=${subId} gap=${(gap / 1000).toFixed(0)}s elapsed=${elapsed}s n=${chunkCount} last=${lastChunkType}`)
+          }
+        }, 10_000)
+        activeStaleTimer = staleTimer
+        console.log(`[SD] R:START(codex) sub=${subId} model=${selectedModel}`)
 
         const clearForcedUnsubscribeTimer = () => {
           if (!forcedUnsubscribeTimer) return
@@ -185,6 +204,10 @@ export class ACPChatTransport implements ChatTransport<UIMessage> {
           },
           {
             onData: (chunk: UIMessageChunk) => {
+              chunkCount++
+              lastChunkType = chunk.type
+              lastChunkAt = Date.now()
+
               if (chunk.type === "session-init") {
                 appStore.set(sessionInfoAtom, {
                   tools: chunk.tools || [],
@@ -238,13 +261,23 @@ export class ACPChatTransport implements ChatTransport<UIMessage> {
               }
 
               try {
-                const normalizedChunk = normalizeCodexStreamChunk(chunk) as UIMessageChunk
-                controller.enqueue(normalizedChunk)
-              } catch {
-                // Stream already closed
+                if (!streamCancelled) {
+                  const normalizedChunk = normalizeCodexStreamChunk(chunk) as UIMessageChunk
+                  controller.enqueue(normalizedChunk)
+                }
+              } catch (e) {
+                if (!streamCancelled) {
+                  streamCancelled = true
+                  console.warn(`[SD] R:CONSUMER_CANCEL(codex) sub=${subId} type=${chunk.type} n=${chunkCount} - unsubscribing`)
+                  clearInterval(staleTimer)
+                  safeUnsubscribe()
+                }
               }
 
               if (chunk.type === "finish") {
+                clearInterval(staleTimer)
+                const elapsed = ((Date.now() - streamStartedAt) / 1000).toFixed(1)
+                console.log(`[SD] R:FINISH(codex) sub=${subId} n=${chunkCount} t=${elapsed}s`)
                 try {
                   controller.close()
                 } catch {
@@ -253,6 +286,8 @@ export class ACPChatTransport implements ChatTransport<UIMessage> {
               }
             },
             onError: (error: Error) => {
+              clearInterval(staleTimer)
+              console.log(`[SD] R:ERROR(codex) sub=${subId} n=${chunkCount} last=${lastChunkType} err=${error.message}`)
               toast.error("Codex request failed", {
                 description: error.message,
               })
@@ -260,6 +295,9 @@ export class ACPChatTransport implements ChatTransport<UIMessage> {
               safeUnsubscribe()
             },
             onComplete: () => {
+              clearInterval(staleTimer)
+              const elapsed = ((Date.now() - streamStartedAt) / 1000).toFixed(1)
+              console.log(`[SD] R:COMPLETE(codex) sub=${subId} n=${chunkCount} last=${lastChunkType} t=${elapsed}s`)
               try {
                 controller.close()
               } catch {
@@ -269,6 +307,7 @@ export class ACPChatTransport implements ChatTransport<UIMessage> {
             },
           },
         )
+        activeSub = sub
 
         options.abortSignal?.addEventListener("abort", () => {
           // Start server-side cancellation first so the router still has
@@ -299,6 +338,11 @@ export class ACPChatTransport implements ChatTransport<UIMessage> {
             }
           })()
         })
+      },
+      cancel(reason) {
+        console.warn(`[SD] R:STREAM_CANCEL(codex) sub=${subId} reason=${reason}`)
+        if (activeStaleTimer) clearInterval(activeStaleTimer)
+        activeSub?.unsubscribe()
       },
     })
   }

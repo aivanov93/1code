@@ -1,4 +1,3 @@
-import * as Sentry from "@sentry/electron/main"
 import { app, BrowserWindow, dialog, Menu, nativeImage, session } from "electron"
 import { existsSync, readlinkSync, unlinkSync } from "fs"
 import { createServer } from "http"
@@ -71,23 +70,42 @@ else if (IS_DEV) {
 app.commandLine.appendSwitch("js-flags", "--max-old-space-size=8192")
 startupPerf("configured V8 memory limit")
 
-// Initialize Sentry before app is ready (production only)
-if (app.isPackaged && !IS_DEV) {
-  const sentryDsn = import.meta.env.MAIN_VITE_SENTRY_DSN
-  if (sentryDsn) {
-    try {
-      Sentry.init({
-        dsn: sentryDsn,
-      })
-      console.log("[App] Sentry initialized")
-    } catch (error) {
-      console.warn("[App] Failed to initialize Sentry:", error)
-    }
-  } else {
-    console.log("[App] Skipping Sentry initialization (no DSN configured)")
+// Child process spy: log every spawn/exit in main process
+{
+  const cp = require("child_process")
+  const origSpawn = cp.spawn
+  cp.spawn = function patchedSpawn(cmd: string, args?: string[], opts?: any) {
+    const label = `${cmd} ${(args || []).slice(0, 3).join(" ")}`
+    const child = origSpawn.call(this, cmd, args, opts)
+    const pid = child.pid
+    console.log(`[SPAWN] pid=${pid} ${label}`)
+    child.on("exit", (code: number) => console.log(`[EXIT] pid=${pid} code=${code} ${label}`))
+    child.on("error", (err: Error) => console.log(`[SPAWN-ERR] pid=${pid} ${err.message}`))
+    return child
   }
-} else {
-  console.log("[App] Skipping Sentry initialization (dev mode)")
+}
+
+// Event loop watchdog: detect when the main process freezes.
+// Logs a snapshot of pending handles/requests right before the loop stalls.
+{
+  let lastTick = Date.now()
+  const STALL_MS = 5_000
+  // This timer fires every 2s if the event loop is healthy
+  const ticker = setInterval(() => { lastTick = Date.now() }, 2_000)
+  ticker.unref()
+  // This checks from a native timer whether JS stopped ticking
+  const checker = setInterval(() => {
+    const gap = Date.now() - lastTick
+    if (gap > STALL_MS) {
+      const handles = (process as any)._getActiveHandles?.()?.length ?? "?"
+      const requests = (process as any)._getActiveRequests?.()?.length ?? "?"
+      const mem = process.memoryUsage()
+      console.error(`[WATCHDOG] Event loop stalled for ${gap}ms! handles=${handles} requests=${requests} rss=${Math.round(mem.rss/1024/1024)}MB heap=${Math.round(mem.heapUsed/1024/1024)}MB`)
+      // Reset to avoid log spam
+      lastTick = Date.now()
+    }
+  }, 3_000)
+  checker.unref()
 }
 
 // URL configuration (exported for use in other modules)
@@ -588,6 +606,14 @@ if (gotTheLock) {
     }
 
     console.log(`[App] Starting 1Code${IS_DEV ? " (DEV)" : ""}...`)
+
+    // Use dark icon in dev mode so it's easy to distinguish from production
+    if (IS_DEV && process.platform === "darwin") {
+      const devIconPath = join(__dirname, "../../build/icon-dev.png")
+      if (existsSync(devIconPath)) {
+        app.dock?.setIcon(nativeImage.createFromPath(devIconPath))
+      }
+    }
 
     // Verify protocol registration after app is ready
     // This helps diagnose first-install issues where the protocol isn't recognized yet

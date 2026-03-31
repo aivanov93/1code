@@ -9,6 +9,7 @@ import {
   ExternalLinkIcon,
 } from "@/components/ui/icons"
 import { Kbd } from "@/components/ui/kbd"
+import { Switch } from "@/components/ui/switch"
 import {
   Tooltip,
   TooltipContent,
@@ -132,6 +133,19 @@ export const InfoSection = memo(function InfoSection({
   // Preferred editor from settings
   const preferredEditor = useAtomValue(preferredEditorAtom)
   const editorMeta = APP_META[preferredEditor]
+
+  // Project config (for skipGitStatus toggle)
+  const utils = trpc.useUtils()
+  const { data: project } = trpc.projects.getByPath.useQuery(
+    { path: worktreePath || "" },
+    { enabled: !!worktreePath },
+  )
+  const setSkipGit = trpc.projects.setSkipGitStatus.useMutation({
+    onSuccess: () => {
+      utils.projects.getByPath.invalidate({ path: worktreePath || "" })
+      utils.projects.list.invalidate()
+    },
+  })
 
   // Mutations
   const openInFinderMutation = trpc.external.openInFinder.useMutation()
@@ -315,6 +329,31 @@ export const InfoSection = memo(function InfoSection({
               <TooltipContent>
                 Open in {editorMeta.label}
                 {openInEditorHotkey && <Kbd className="normal-case font-sans">{openInEditorHotkey}</Kbd>}
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </div>
+      )}
+      {/* Skip Git Status toggle */}
+      {project && (
+        <div className="flex items-center min-h-[28px]">
+          <div className="flex items-center gap-1.5 w-[100px] flex-shrink-0">
+            <GitBranchFilledIcon className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+            <span className="text-xs text-muted-foreground truncate">Git status</span>
+          </div>
+          <div className="flex-1 min-w-0 pl-2">
+            <Tooltip delayDuration={500}>
+              <TooltipTrigger asChild>
+                <div className="flex items-center">
+                  <Switch
+                    checked={!project.skipGitStatus}
+                    onCheckedChange={(checked) => setSkipGit.mutate({ id: project.id, skip: !checked })}
+                    className="h-4 w-7 [&>span]:h-3 [&>span]:w-3"
+                  />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs">
+                {project.skipGitStatus ? "Git status disabled for this workspace" : "Disable to skip slow git operations"}
               </TooltipContent>
             </Tooltip>
           </div>

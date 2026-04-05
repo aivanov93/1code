@@ -4,7 +4,7 @@ import { memo, useCallback, useMemo, useState, useEffect, useRef } from "react"
 import { useAtom, useAtomValue, useSetAtom } from "jotai"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { ArrowUpRight } from "lucide-react"
+import { ArrowUpRight, RefreshCw } from "lucide-react"
 import { DiffIcon, IconSpinner } from "@/components/ui/icons"
 import {
   Tooltip,
@@ -49,6 +49,8 @@ interface ChangesWidgetProps {
   onFileSelect?: (filePath: string) => void
   /** Diff display mode - affects tooltip text */
   diffDisplayMode?: "side-peek" | "center-peek" | "full-page"
+  /** Manual refresh callback (auto-refresh disabled) */
+  onRefresh?: () => void
 }
 
 /**
@@ -91,6 +93,7 @@ export const ChangesWidget = memo(function ChangesWidget({
   onExpand,
   onFileSelect,
   diffDisplayMode = "side-peek",
+  onRefresh,
 }: ChangesWidgetProps) {
   // Data is now cached at the ActiveChat level via workspaceDiffCacheAtomFamily
   // So parsedFileDiffs and diffStats persist across workspace switches
@@ -291,6 +294,25 @@ export const ChangesWidget = memo(function ChangesWidget({
 
           {/* Spacer */}
           <div className="flex-1" />
+
+          {/* Refresh button */}
+          {onRefresh && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onRefresh}
+                  disabled={isLoadingChanges}
+                  className="h-5 w-5 p-0 hover:bg-foreground/10 text-muted-foreground hover:text-foreground rounded-md opacity-0 group-hover:opacity-100 transition-[background-color,opacity,transform] duration-150 ease-out active:scale-[0.97] flex-shrink-0"
+                  aria-label="Refresh changes"
+                >
+                  <RefreshCw className={cn("h-3 w-3", isLoadingChanges && "animate-spin")} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left">Refresh changes</TooltipContent>
+            </Tooltip>
+          )}
 
           {/* Expand to sidebar button */}
           {onExpand && (

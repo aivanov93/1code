@@ -172,53 +172,9 @@ export function KanbanView() {
     return allIds
   }, [chats, openSubChatsVersion])
 
-  // Pending plan approvals from DB
-  const { data: pendingPlanApprovalsData } = trpc.chats.getPendingPlanApprovals.useQuery(
-    { openSubChatIds: allOpenSubChatIds },
-    { refetchInterval: 5000, enabled: allOpenSubChatIds.length > 0, placeholderData: (prev) => prev }
-  )
-
-  // File stats from DB
-  const { data: fileStatsData } = trpc.chats.getFileStats.useQuery(
-    { openSubChatIds: allOpenSubChatIds },
-    { refetchInterval: 5000, enabled: allOpenSubChatIds.length > 0, placeholderData: (prev) => prev }
-  )
-
-  // Build set of chatIds with pending plan approvals from DB
-  const workspacesWithPendingApprovalsFromDb = useMemo(() => {
-    const set = new Set<string>()
-    if (pendingPlanApprovalsData) {
-      for (const item of pendingPlanApprovalsData) {
-        set.add(item.chatId)
-      }
-    }
-    return set
-  }, [pendingPlanApprovalsData])
-
-  // Build set of chatIds with pending plan approvals from runtime atom
-  const workspacesWithPendingApprovals = useMemo(() => {
-    const set = new Set<string>(workspacesWithPendingApprovalsFromDb)
-    // Add from runtime atom (parentChatId is the workspace id)
-    pendingPlanApprovals.forEach((parentChatId) => {
-      set.add(parentChatId)
-    })
-    return set
-  }, [workspacesWithPendingApprovalsFromDb, pendingPlanApprovals])
-
-  // Build file stats map (chatId -> stats)
-  const workspaceFileStats = useMemo(() => {
-    const statsMap = new Map<string, { fileCount: number; additions: number; deletions: number }>()
-    if (fileStatsData) {
-      for (const stat of fileStatsData) {
-        statsMap.set(stat.chatId, {
-          fileCount: stat.fileCount,
-          additions: stat.additions,
-          deletions: stat.deletions,
-        })
-      }
-    }
-    return statsMap
-  }, [fileStatsData])
+  // Disabled: these 5s polls were causing ~500ms main-process blocks (DB + superjson serialization)
+  const workspacesWithPendingApprovals = useMemo(() => new Set<string>(), [])
+  const workspaceFileStats = useMemo(() => new Map<string, { fileCount: number; additions: number; deletions: number }>(), [])
 
   // Build set of chatIds with pending questions
   const workspacesWithPendingQuestions = useMemo(() => {

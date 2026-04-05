@@ -23,7 +23,8 @@ class PortManager extends EventEmitter {
 
 	constructor() {
 		super()
-		this.startPeriodicScan()
+		// Disabled: lsof spawns every 2.5s were blocking the main process thread
+		// this.startPeriodicScan()
 	}
 
 	/**

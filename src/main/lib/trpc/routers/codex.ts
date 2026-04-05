@@ -1627,10 +1627,33 @@ export const codexRouter = router({
             })
             const metadataModel = selectedModelId
 
+            // Replace skill mentions with [$name](path) (Codex's skill syntax)
+            // Resolve each skill's SKILL.md path so Codex can load it
+            let prompt = input.prompt
+            const skillMentionRegex = /@\[skill:([^\]]+)\]/g
+            let skillMatch: RegExpExecArray | null
+            while ((skillMatch = skillMentionRegex.exec(input.prompt)) !== null) {
+              const skillName = skillMatch[1]
+              const candidatePaths = [
+                ...(input.projectPath ? [
+                  join(input.projectPath, ".claude", "skills", skillName, "SKILL.md"),
+                  join(input.projectPath, ".agents", "skills", skillName, "SKILL.md"),
+                ] : []),
+                join(homedir(), ".claude", "skills", skillName, "SKILL.md"),
+                join(homedir(), ".agents", "skills", skillName, "SKILL.md"),
+              ]
+              const resolvedPath = candidatePaths.find((p) => existsSync(p))
+              const replacement = resolvedPath
+                ? `[$${skillName}](${resolvedPath})`
+                : `$${skillName}`
+              prompt = prompt.replace(skillMatch[0], replacement)
+            }
+            prompt = prompt.trim()
+
             const lastMessage = existingMessages[existingMessages.length - 1]
             const isDuplicatePrompt =
               lastMessage?.role === "user" &&
-              extractPromptFromStoredMessage(lastMessage) === input.prompt
+              extractPromptFromStoredMessage(lastMessage) === prompt
 
             let messagesForStream = existingMessages
             const isAuthoritativeRun = () => {
@@ -1679,7 +1702,7 @@ export const codexRouter = router({
               const userMessage = {
                 id: crypto.randomUUID(),
                 role: "user",
-                parts: buildUserParts(input.prompt, input.images),
+                parts: buildUserParts(prompt, input.images),
                 metadata: { model: metadataModel },
               }
 
@@ -1777,7 +1800,7 @@ export const codexRouter = router({
               messages: [
                 {
                   role: "user",
-                  content: buildModelMessageContent(input.prompt, input.images),
+                  content: buildModelMessageContent(prompt, input.images),
                 },
               ],
               tools: provider.tools,

@@ -29,6 +29,7 @@ export interface DesktopApi {
   platform: NodeJS.Platform
   arch: string
   getVersion: () => Promise<string>
+  appLog: (level: "info" | "warn" | "error", message: string) => void
 
   // Auto-update
   checkForUpdates: (force?: boolean) => Promise<UpdateInfo | null>

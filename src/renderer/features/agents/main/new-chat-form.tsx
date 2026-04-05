@@ -2,8 +2,7 @@
 
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { useAtom, useAtomValue, useSetAtom } from "jotai"
-import { AlignJustify, Plus, Folder as FolderIcon } from "lucide-react"
-import * as LucideIcons from "lucide-react"
+import { AlignJustify, Plus } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { Button } from "../../../components/ui/button"
@@ -168,11 +167,11 @@ const agents = [
   { id: "codex", name: "OpenAI Codex" },
 ]
 
+import { getFolderIcon } from "../../sidebar/folder-icon-map"
+
 /** Inline Lucide icon resolved by name */
 function FolderIconInline({ name, color }: { name: string; color: string }) {
-  const pascalName = name.split("-").map((s) => s.charAt(0).toUpperCase() + s.slice(1)).join("")
-  const Icon = (LucideIcons as Record<string, unknown>)[pascalName]
-  const Comp = (Icon && (typeof Icon === "function" || typeof Icon === "object")) ? (Icon as React.ComponentType<{ className?: string; style?: React.CSSProperties }>) : FolderIcon
+  const Comp = getFolderIcon(name)
   return <Comp className="h-3.5 w-3.5 flex-shrink-0" style={{ color }} />
 }
 

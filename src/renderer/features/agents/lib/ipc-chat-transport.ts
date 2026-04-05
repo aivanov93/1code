@@ -23,8 +23,10 @@ import {
   subChatModelIdAtomFamily,
 } from "../atoms"
 import { useAgentSubChatStore } from "../stores/sub-chat-store"
+import { agentChatStore } from "../stores/agent-chat-store"
 import type { AgentMessageMetadata } from "../ui/agent-message-usage"
 import { getDefaultClaudeModelSlug } from "./models"
+import { logStreamDiagnostic } from "./stream-diagnostics-log"
 
 // Error categories and their user-friendly messages
 const ERROR_TOAST_CONFIG: Record<
@@ -188,32 +190,81 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
     const subId = this.config.subChatId.slice(-8)
     let chunkCount = 0
     let lastChunkType = ""
-    console.log(
+    logStreamDiagnostic(
+      "info",
       `[SD] R:START sub=${subId} cwd=${this.config.cwd} projectPath=${this.config.projectPath || "(not set)"} model=${modelString}`,
     )
 
     // Shared ref so cancel() callback can unsubscribe the tRPC sub
     let activeSub: { unsubscribe: () => void } | null = null
     let activeStaleTimer: ReturnType<typeof setInterval> | null = null
+    let heartbeatCount = 0
+    let lastDataChunkAt = Date.now()
+    let lastDataChunkType = ""
+    let lastDataQuietLogBucket = 0
+    let staleCheckInFlight = false
 
     return new ReadableStream({
       start: (controller) => {
         // Stale stream detection + diagnostics: log gaps and auto-close
-        // if no chunks arrive for 60s.
-        const STALE_TIMEOUT_MS = 60_000
+        // if no chunks arrive for 45s.
+        // With server heartbeats every 15s, 45s without ANY chunk (data or
+        // heartbeat) means the server/IPC is genuinely dead.
+        const STALE_TIMEOUT_MS = 45_000
         const streamStartedAt = Date.now()
         let lastChunkAt = Date.now()
         // Track if stream was cancelled by consumer (AI SDK)
         let streamCancelled = false
+        const maybeSuppressStaleClose = async () => {
+          if (!lastDataChunkType.startsWith("tool-input")) {
+            return false
+          }
+
+          try {
+            const activeTerminalSessions =
+              await trpcClient.terminal.getActiveSessionCount.query({
+                workspaceId: this.config.chatId,
+              })
+
+            if (activeTerminalSessions > 0) {
+              lastChunkAt = Date.now()
+              logStreamDiagnostic(
+                "warn",
+                `[SD] R:STALE_SUPPRESS sub=${subId} terminals=${activeTerminalSessions} last=${lastChunkType} lastData=${lastDataChunkType} - keeping stream open`,
+              )
+              return true
+            }
+          } catch (error) {
+            logStreamDiagnostic(
+              "warn",
+              `[SD] R:STALE_CHECK_ERR sub=${subId} last=${lastChunkType} lastData=${lastDataChunkType} err=${error instanceof Error ? error.message : String(error)}`,
+            )
+          }
+
+          return false
+        }
         const staleTimer = setInterval(() => {
           const gap = Date.now() - lastChunkAt
           const elapsed = ((Date.now() - streamStartedAt) / 1000).toFixed(0)
           if (gap > STALE_TIMEOUT_MS) {
-            console.warn(`[SD] R:STALE sub=${subId} gap=${(gap / 1000).toFixed(0)}s elapsed=${elapsed}s n=${chunkCount} last=${lastChunkType} - closing stream`)
-            clearInterval(staleTimer)
-            try { controller.close() } catch { /* already closed */ }
+            if (staleCheckInFlight) return
+            staleCheckInFlight = true
+            void maybeSuppressStaleClose()
+              .then((suppressed) => {
+                staleCheckInFlight = false
+                if (suppressed) return
+                logStreamDiagnostic("warn", `[SD] R:STALE sub=${subId} gap=${(gap / 1000).toFixed(0)}s elapsed=${elapsed}s n=${chunkCount} last=${lastChunkType} lastData=${lastDataChunkType || "(none)"} hb=${heartbeatCount} - closing stream`)
+                clearInterval(staleTimer)
+                try { controller.close() } catch { /* already closed */ }
+              })
+              .catch(() => {
+                staleCheckInFlight = false
+                logStreamDiagnostic("warn", `[SD] R:STALE sub=${subId} gap=${(gap / 1000).toFixed(0)}s elapsed=${elapsed}s n=${chunkCount} last=${lastChunkType} lastData=${lastDataChunkType || "(none)"} hb=${heartbeatCount} - closing stream`)
+                clearInterval(staleTimer)
+                try { controller.close() } catch { /* already closed */ }
+              })
           } else if (gap > 15_000) {
-            console.log(`[SD] R:QUIET sub=${subId} gap=${(gap / 1000).toFixed(0)}s elapsed=${elapsed}s n=${chunkCount} last=${lastChunkType}`)
+            logStreamDiagnostic("info", `[SD] R:QUIET sub=${subId} gap=${(gap / 1000).toFixed(0)}s elapsed=${elapsed}s n=${chunkCount} last=${lastChunkType} lastData=${lastDataChunkType || "(none)"} hb=${heartbeatCount}`)
           }
         }, 10_000)
         activeStaleTimer = staleTimer
@@ -240,6 +291,32 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
               chunkCount++
               lastChunkType = chunk.type
               lastChunkAt = Date.now()
+
+              // Server heartbeat - just reset stale timer, don't forward to AI SDK
+              if (chunk.type === "keep-alive") {
+                heartbeatCount++
+                const dataGap = Date.now() - lastDataChunkAt
+                const quietBucket = Math.floor(dataGap / 30_000)
+                if (quietBucket > 0 && quietBucket !== lastDataQuietLogBucket) {
+                  lastDataQuietLogBucket = quietBucket
+                  logStreamDiagnostic(
+                    "info",
+                    `[SD] R:HEARTBEAT sub=${subId} hb=${heartbeatCount} dataGap=${(dataGap / 1000).toFixed(0)}s n=${chunkCount} lastData=${lastDataChunkType || "(none)"}`,
+                  )
+                }
+                return
+              }
+
+              const dataGap = Date.now() - lastDataChunkAt
+              if (lastDataChunkType && dataGap > 30_000) {
+                logStreamDiagnostic(
+                  "info",
+                  `[SD] R:DATA_RESUME sub=${subId} type=${chunk.type} dataGap=${(dataGap / 1000).toFixed(0)}s n=${chunkCount} prevData=${lastDataChunkType}`,
+                )
+              }
+              lastDataChunkAt = lastChunkAt
+              lastDataChunkType = chunk.type
+              lastDataQuietLogBucket = 0
 
               // Handle AskUserQuestion - show question UI
               if (chunk.type === "ask-user-question") {
@@ -372,7 +449,7 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
                 // Use controller.error() instead of controller.close() so that
                 // the SDK Chat properly resets status from "streaming" to "ready"
                 // This allows user to retry sending messages after failed auth
-                console.log(`[SD] R:AUTH_ERR sub=${subId}`)
+                logStreamDiagnostic("info", `[SD] R:AUTH_ERR sub=${subId}`)
                 controller.error(new Error("Authentication required"))
                 return
               }
@@ -455,7 +532,7 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
                   // Unsubscribe tRPC to stop the server-side stream and prevent
                   // wasting resources on chunks that can never be delivered.
                   streamCancelled = true
-                  console.warn(`[SD] R:CONSUMER_CANCEL sub=${subId} type=${chunk.type} n=${chunkCount} - unsubscribing`)
+                  logStreamDiagnostic("warn", `[SD] R:CONSUMER_CANCEL sub=${subId} type=${chunk.type} n=${chunkCount} lastData=${lastDataChunkType || "(none)"} hb=${heartbeatCount} - unsubscribing`)
                   clearInterval(staleTimer)
                   sub.unsubscribe()
                 }
@@ -463,7 +540,7 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
 
               if (chunk.type === "finish") {
                 clearInterval(staleTimer)
-                console.log(`[SD] R:FINISH sub=${subId} n=${chunkCount}`)
+                logStreamDiagnostic("info", `[SD] R:FINISH sub=${subId} n=${chunkCount} lastData=${lastDataChunkType || "(none)"} hb=${heartbeatCount}`)
                 try {
                   controller.close()
                 } catch {
@@ -473,12 +550,12 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
             },
             onError: (err: Error) => {
               clearInterval(staleTimer)
-              console.log(`[SD] R:ERROR sub=${subId} n=${chunkCount} last=${lastChunkType} err=${err.message}`)
+              logStreamDiagnostic("info", `[SD] R:ERROR sub=${subId} n=${chunkCount} last=${lastChunkType} lastData=${lastDataChunkType || "(none)"} hb=${heartbeatCount} err=${err.message}`)
               controller.error(err)
             },
             onComplete: () => {
               clearInterval(staleTimer)
-              console.log(`[SD] R:COMPLETE sub=${subId} n=${chunkCount} last=${lastChunkType}`)
+              logStreamDiagnostic("info", `[SD] R:COMPLETE sub=${subId} n=${chunkCount} last=${lastChunkType} lastData=${lastDataChunkType || "(none)"} hb=${heartbeatCount}`)
               // Note: Don't clear pending questions here - let active-chat.tsx handle it
               // via the stream stop detection effect. Clearing here causes race conditions
               // where sync effect immediately restores from messages.
@@ -495,7 +572,12 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
         // Handle abort
         options.abortSignal?.addEventListener("abort", () => {
           clearInterval(staleTimer)
-          console.log(`[SD] R:ABORT sub=${subId} n=${chunkCount} last=${lastChunkType}`)
+          const abortReason =
+            agentChatStore.consumeAbortReason(this.config.subChatId) ||
+            (options.abortSignal?.reason != null
+              ? String(options.abortSignal.reason)
+              : "unknown")
+          logStreamDiagnostic("info", `[SD] R:ABORT sub=${subId} n=${chunkCount} last=${lastChunkType} lastData=${lastDataChunkType || "(none)"} hb=${heartbeatCount} reason=${abortReason}`)
           sub.unsubscribe()
           // trpcClient.claude.cancel.mutate({ subChatId: this.config.subChatId })
           try {
@@ -507,7 +589,7 @@ export class IPCChatTransport implements ChatTransport<UIMessage> {
       },
       // Called when the consumer (AI SDK / useChat) cancels the reader
       cancel(reason) {
-        console.warn(`[SD] R:STREAM_CANCEL sub=${subId} n=${chunkCount} last=${lastChunkType} reason=${reason}`)
+        logStreamDiagnostic("warn", `[SD] R:STREAM_CANCEL sub=${subId} n=${chunkCount} last=${lastChunkType} lastData=${lastDataChunkType || "(none)"} hb=${heartbeatCount} reason=${reason}`)
         if (activeStaleTimer) clearInterval(activeStaleTimer)
         activeSub?.unsubscribe()
       },

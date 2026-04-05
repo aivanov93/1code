@@ -31,6 +31,7 @@ import {
 } from "../../claude-config"
 import { anthropicAccounts, anthropicSettings, chats, claudeCodeCredentials, getDatabase, projects as projectsTable, subChats } from "../../db"
 import { createRollbackStash } from "../../git/stash"
+import { logStreamDiagnostic } from "../../stream-diagnostics-log"
 import {
   ensureMcpTokensFresh,
   fetchMcpTools,
@@ -836,9 +837,15 @@ export const claudeRouter = router({
         const streamStart = Date.now()
         let chunkCount = 0
         let lastChunkType = ""
+        let messageCount = 0
+        let heartbeatCount = 0
+        let lastSdkMessageAt = Date.now()
+        let lastSdkMessageType = "none"
+        let lastQuietLogBucket = 0
         // Shared sessionId for cleanup to save on abort
         let currentSessionId: string | null = null
-        console.log(
+        logStreamDiagnostic(
+          "info",
           `[SD] M:START sub=${subId} stream=${streamId.slice(-8)} mode=${input.mode}`,
         )
 
@@ -852,7 +859,7 @@ export const claudeRouter = router({
             emit.next(chunk)
             return true
           } catch (emitErr) {
-            console.warn(`[SD] M:EMIT_DIED sub=${subId} type=${(chunk as any)?.type} n=${chunkCount} err=${emitErr}`)
+            logStreamDiagnostic("warn", `[SD] M:EMIT_DIED sub=${subId} type=${(chunk as any)?.type} n=${chunkCount} err=${emitErr}`)
             isObservableActive = false
             return false
           }
@@ -862,10 +869,26 @@ export const claudeRouter = router({
         // must receive onComplete to reset useChat status from "streaming".
         const safeComplete = () => {
           try {
+            logStreamDiagnostic(
+              "info",
+              `[SD] M:COMPLETE sub=${subId} n=${chunkCount} last=${lastChunkType}`,
+            )
             emit.complete()
-          } catch {
+          } catch (completeErr) {
             // Already completed or closed
+            logStreamDiagnostic(
+              "warn",
+              `[SD] M:COMPLETE_ERR sub=${subId} n=${chunkCount} last=${lastChunkType} err=${completeErr}`,
+            )
           }
+        }
+
+        const emitFinish = (context: string, chunk?: UIMessageChunk) => {
+          logStreamDiagnostic(
+            "info",
+            `[SD] M:FINISH sub=${subId} ctx=${context} n=${chunkCount} last=${lastChunkType}`,
+          )
+          safeEmit(chunk ?? ({ type: "finish" } as UIMessageChunk))
         }
 
         // Helper to emit error to frontend
@@ -995,7 +1018,7 @@ export const claudeRouter = router({
                 new Error(offlineResult.error),
                 "Offline mode unavailable",
               )
-              safeEmit({ type: "finish" } as UIMessageChunk)
+              emitFinish("offline_mode_unavailable")
               safeComplete()
               return
             }
@@ -1028,10 +1051,11 @@ export const claudeRouter = router({
               claudeQuery = await getClaudeQuery()
             } catch (sdkError) {
               emitError(sdkError, "Failed to load Claude SDK")
-              console.log(
+              logStreamDiagnostic(
+                "info",
                 `[SD] M:END sub=${subId} reason=sdk_load_error n=${chunkCount}`,
               )
-              safeEmit({ type: "finish" } as UIMessageChunk)
+              emitFinish("sdk_load_error")
               safeComplete()
               return
             }
@@ -1072,21 +1096,23 @@ export const claudeRouter = router({
               console.log(`[claude] Skills mentioned:`, skillMentions)
             }
 
-            // Build final prompt with skill instructions if needed
+            // Build final prompt with skill/agent instructions
             let finalPrompt = cleanedPrompt
 
-            // Handle empty prompt when only mentions are present
-            if (!finalPrompt.trim()) {
-              if (agentMentions.length > 0 && skillMentions.length > 0) {
-                finalPrompt = `Use the ${agentMentions.join(", ")} agent(s) and invoke the "${skillMentions.join('", "')}" skill(s) using the Skill tool for this task.`
-              } else if (agentMentions.length > 0) {
-                finalPrompt = `Use the ${agentMentions.join(", ")} agent(s) for this task.`
-              } else if (skillMentions.length > 0) {
-                finalPrompt = `Invoke the "${skillMentions.join('", "')}" skill(s) using the Skill tool for this task.`
-              }
-            } else if (skillMentions.length > 0) {
-              // Append skill instruction to existing prompt
-              finalPrompt = `${finalPrompt}\n\nUse the "${skillMentions.join('", "')}" skill(s) for this task.`
+            // Expand skill mentions as <command-name> tags so the SDK
+            // loads the SKILL.md content (works even with disable-model-invocation)
+            if (skillMentions.length > 0) {
+              const skillTags = skillMentions
+                .map((s) => `<command-name>/${s}</command-name>`)
+                .join("\n")
+              finalPrompt = finalPrompt.trim()
+                ? `${skillTags}\n${finalPrompt}`
+                : skillTags
+            }
+
+            // Handle empty prompt when only agent mentions are present
+            if (!finalPrompt.trim() && agentMentions.length > 0) {
+              finalPrompt = `Use the ${agentMentions.join(", ")} agent(s) for this task.`
             }
 
             // Build prompt: if there are images, create an AsyncIterable<SDKUserMessage>
@@ -2026,10 +2052,11 @@ ${prompt}
                   queryError,
                 )
                 emitError(queryError, "Failed to start Claude query")
-                console.log(
+                logStreamDiagnostic(
+                  "info",
                   `[SD] M:END sub=${subId} reason=query_error n=${chunkCount}`,
                 )
-                safeEmit({ type: "finish" } as UIMessageChunk)
+                emitFinish("query_error")
                 safeComplete()
                 return
               }
@@ -2054,6 +2081,24 @@ ${prompt}
                 console.log(`[Ollama] CWD: ${input.cwd}`)
               }
 
+              // Heartbeat: emit keep-alive chunks every 15s so the renderer
+              // can distinguish "server alive, waiting for API" from "dead stream".
+              const heartbeatTimer = setInterval(() => {
+                if (!abortController.signal.aborted && isObservableActive) {
+                  heartbeatCount++
+                  const sdkGap = Date.now() - lastSdkMessageAt
+                  const quietBucket = Math.floor(sdkGap / 30_000)
+                  if (quietBucket > 0 && quietBucket !== lastQuietLogBucket) {
+                    lastQuietLogBucket = quietBucket
+                    logStreamDiagnostic(
+                      "info",
+                      `[SD] M:HEARTBEAT sub=${subId} hb=${heartbeatCount} sdkGap=${(sdkGap / 1000).toFixed(0)}s msgs=${messageCount} chunks=${chunkCount} lastSdk=${lastSdkMessageType} lastChunk=${lastChunkType}`,
+                    )
+                  }
+                  safeEmit({ type: "keep-alive" } as UIMessageChunk)
+                }
+              }, 15_000)
+
               try {
                 for await (const msg of stream) {
                   if (abortController.signal.aborted) {
@@ -2062,11 +2107,22 @@ ${prompt}
                     break
                   }
 
+                  const msgAny = msg as any
+                  const sdkGap = Date.now() - lastSdkMessageAt
+                  if (messageCount > 0 && sdkGap > 30_000) {
+                    logStreamDiagnostic(
+                      "info",
+                      `[SD] M:SDK_RESUME sub=${subId} gap=${(sdkGap / 1000).toFixed(0)}s sdkType=${msgAny.type || "unknown"} prevSdk=${lastSdkMessageType} lastChunk=${lastChunkType}`,
+                    )
+                  }
+                  lastSdkMessageAt = Date.now()
+                  lastSdkMessageType = msgAny.type || "unknown"
+                  lastQuietLogBucket = 0
                   messageCount++
 
                   // Extra logging for Ollama to diagnose issues
                   if (isUsingOllama) {
-                    const msgAnyPreview = msg as any
+                    const msgAnyPreview = msgAny
                     console.log(`[Ollama] ===== MESSAGE #${messageCount} =====`)
                     console.log(`[Ollama] Type: ${msgAnyPreview.type}`)
                     console.log(
@@ -2117,7 +2173,6 @@ ${prompt}
                   logRawClaudeMessage(input.chatId, msg)
 
                   // Check for error messages from SDK (error can be embedded in message payload!)
-                  const msgAny = msg as any
                   if (msgAny.type === "error" || msgAny.error) {
                     // Extract detailed error text from message content if available
                     // This is where the actual error description lives (e.g., "API Error: Claude Code is unable to respond...")
@@ -2259,7 +2314,8 @@ ${prompt}
                       } as UIMessageChunk)
                     }
 
-                    console.log(
+                    logStreamDiagnostic(
+                      "info",
                       `[SD] M:END sub=${subId} reason=sdk_error cat=${errorCategory} n=${chunkCount}`,
                     )
                     console.error(`[SD] SDK Error details:`, {
@@ -2270,7 +2326,7 @@ ${prompt}
                       messageId: msgAny.message?.id,
                       fullMessage: JSON.stringify(msgAny, null, 2),
                     })
-                    safeEmit({ type: "finish" } as UIMessageChunk)
+                    emitFinish("sdk_error")
                     safeComplete()
                     return
                   }
@@ -2344,7 +2400,8 @@ ${prompt}
                     // Use safeEmit to prevent throws when observer is closed
                     if (!safeEmit(chunk)) {
                       // Observer closed (user clicked Stop), break out of loop
-                      console.log(
+                      logStreamDiagnostic(
+                        "info",
                         `[SD] M:EMIT_CLOSED sub=${subId} type=${chunk.type} n=${chunkCount}`,
                       )
                       break
@@ -2419,15 +2476,31 @@ ${prompt}
                         break
                       case "message-metadata":
                         metadata = { ...metadata, ...chunk.messageMetadata }
+                        // SDK executed all tools before emitting result. If any tool
+                        // is still in "call" state the output event was lost in transit
+                        // (API gap during streaming). Auto-complete them so the UI
+                        // doesn't show "Write interrupted" for tools that succeeded.
+                        if (chunk.messageMetadata?.resultSubtype === "success") {
+                          for (const p of parts) {
+                            if (p.state === "call" && p.type?.startsWith("tool-")) {
+                              console.log(`[SD] M:AUTO_COMPLETE sub=${subId} tool=${p.toolName} callId=${p.toolCallId}`)
+                              p.state = "result"
+                              p.result = p.result ?? { _autoCompleted: true }
+                              p.output = p.output ?? p.result
+                            }
+                          }
+                        }
                         break
                     }
                   }
                   // Break from stream loop if observer closed (user clicked Stop)
                   if (!isObservableActive) {
-                    console.log(`[SD] M:OBSERVER_CLOSED_STREAM sub=${subId}`)
+                    logStreamDiagnostic("info", `[SD] M:OBSERVER_CLOSED_STREAM sub=${subId}`)
                     break
                   }
                 }
+
+                clearInterval(heartbeatTimer)
 
                 // Warn if stream yielded no messages (offline mode issue)
                 const streamDuration = Date.now() - streamIterationStart
@@ -2474,6 +2547,7 @@ ${prompt}
                   )
                 }
               } catch (streamError) {
+                clearInterval(heartbeatTimer)
                 // This catches errors during streaming (like process exit)
                 const err = streamError as Error
                 const stderrOutput = stderrLines.join("\n")
@@ -2566,7 +2640,8 @@ ${prompt}
                 }
 
                 // ALWAYS save accumulated parts before returning (even on abort/error)
-                console.log(
+                logStreamDiagnostic(
+                  "info",
                   `[SD] M:CATCH_SAVE sub=${subId} aborted=${abortController.signal.aborted} parts=${parts.length}`,
                 )
                 if (currentText.trim()) {
@@ -2603,10 +2678,11 @@ ${prompt}
                   }
                 }
 
-                console.log(
+                logStreamDiagnostic(
+                  "info",
                   `[SD] M:END sub=${subId} reason=stream_error cat=${errorCategory} n=${chunkCount} last=${lastChunkType}`,
                 )
-                safeEmit({ type: "finish" } as UIMessageChunk)
+                emitFinish("stream_error")
                 safeComplete()
                 return
               }
@@ -2630,17 +2706,19 @@ ${prompt}
                 new Error("No response received from Claude"),
                 "Empty response",
               )
-              console.log(
+              logStreamDiagnostic(
+                "info",
                 `[SD] M:END sub=${subId} reason=no_response n=${chunkCount}`,
               )
-              safeEmit({ type: "finish" } as UIMessageChunk)
+              emitFinish("no_response")
               safeComplete()
               return
             }
 
             // 7. Save final messages to DB
             // ALWAYS save accumulated parts, even on abort (so user sees partial responses after reload)
-            console.log(
+            logStreamDiagnostic(
+              "info",
               `[SD] M:SAVE sub=${subId} aborted=${abortController.signal.aborted} parts=${parts.length}`,
             )
 
@@ -2694,23 +2772,25 @@ ${prompt}
             }
 
             const duration = ((Date.now() - streamStart) / 1000).toFixed(1)
-            console.log(
+            logStreamDiagnostic(
+              "info",
               `[SD] M:END sub=${subId} reason=ok n=${chunkCount} last=${lastChunkType} t=${duration}s`,
             )
             if (pendingFinishChunk) {
-              safeEmit(pendingFinishChunk)
+              emitFinish("ok_pending_finish", pendingFinishChunk)
             } else {
               // Keep protocol invariant for consumers that wait for finish.
-              safeEmit({ type: "finish" } as UIMessageChunk)
+              emitFinish("ok_synthetic_finish")
             }
             safeComplete()
           } catch (error) {
             const duration = ((Date.now() - streamStart) / 1000).toFixed(1)
-            console.log(
+            logStreamDiagnostic(
+              "info",
               `[SD] M:END sub=${subId} reason=unexpected_error n=${chunkCount} t=${duration}s`,
             )
             emitError(error, "Unexpected error")
-            safeEmit({ type: "finish" } as UIMessageChunk)
+            emitFinish("unexpected_error")
             safeComplete()
           } finally {
             activeSessions.delete(input.subChatId)
@@ -2720,7 +2800,7 @@ ${prompt}
             // to the renderer fails, cleanup never runs and the SDK process
             // becomes orphaned.
             if (!abortController.signal.aborted) {
-              console.log(`[SD] M:ABORT_ORPHAN sub=${subId}`)
+              logStreamDiagnostic("info", `[SD] M:ABORT_ORPHAN sub=${subId}`)
               abortController.abort()
             }
             clearPendingApprovals("Session ended.", input.subChatId)
@@ -2729,8 +2809,9 @@ ${prompt}
 
         // Cleanup on unsubscribe
         return () => {
-          console.log(
-            `[SD] M:CLEANUP sub=${subId} sessionId=${currentSessionId || "none"}`,
+          logStreamDiagnostic(
+            "info",
+            `[SD] M:CLEANUP sub=${subId} sessionId=${currentSessionId || "none"} msgs=${messageCount} chunks=${chunkCount} lastSdk=${lastSdkMessageType} lastChunk=${lastChunkType}`,
           )
           isObservableActive = false // Prevent emit after unsubscribe
           abortController.abort()

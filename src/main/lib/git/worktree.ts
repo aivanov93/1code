@@ -975,113 +975,105 @@ export async function createWorktreeForChat(
  * @param worktreePath - Path to the worktree
  * @param baseBranch - The base branch to compare against (if not provided, uses default branch)
  */
+const LOCK_EXCLUSIONS = [":!*.lock", ":!*-lock.*", ":!package-lock.json", ":!pnpm-lock.yaml", ":!yarn.lock"]
+
+function isLockFile(file: string): boolean {
+	return file.endsWith(".lock") || file.includes("-lock.") || file.endsWith("package-lock.json") || file.endsWith("pnpm-lock.yaml") || file.endsWith("yarn.lock")
+}
+
+/** Diff untracked files against /dev/null. git diff --no-index exits 1 when files differ. */
+async function diffUntrackedFiles(git: ReturnType<typeof simpleGit>, files: string[]): Promise<string> {
+	const diffs: string[] = []
+	for (const file of files) {
+		try {
+			const d = await git.raw(["diff", "--no-color", "--no-index", devNull, file])
+			if (d) diffs.push(d)
+		} catch (error: unknown) {
+			const msg = (error as { message?: string })?.message
+			if (msg?.includes("diff --git")) {
+				const i = msg.indexOf("diff --git")
+				if (i !== -1) diffs.push(msg.substring(i))
+			}
+		}
+	}
+	return diffs.join("\n")
+}
+
+export type DiffScope = "working" | "branch"
+
 export async function getWorktreeDiff(
 	worktreePath: string,
 	baseBranch?: string,
-	options?: { onlyUncommitted?: boolean },
+	options?: { onlyUncommitted?: boolean; scope?: DiffScope },
 ): Promise<{ success: boolean; diff?: string; error?: string }> {
+	const scope = options?.scope ?? (options?.onlyUncommitted ? "working" : undefined)
 	try {
 		const git = simpleGit(worktreePath);
-		const status = await git.status();
-		const currentBranch = status.current;
 
-		// Has uncommitted changes - diff against HEAD
-		if (!status.isClean()) {
-			const exclusionArgs = [
-				":!*.lock",
-				":!*-lock.*",
-				":!package-lock.json",
-				":!pnpm-lock.yaml",
-				":!yarn.lock",
-			];
+		if (scope === "branch") {
+			// Branch diff: base...HEAD + uncommitted
+			const targetBranch = baseBranch || await getDefaultBranch(worktreePath);
+			const baseRef = await refExistsLocally(worktreePath, `origin/${targetBranch}`)
+				? `origin/${targetBranch}` : targetBranch;
 
-			const workingDiff = await git.diff([
-				"HEAD",
-				"--no-color",
-				"--",
-				...exclusionArgs,
-			]);
+			// Committed diff (base...HEAD) is fast - tree comparison, no working tree scan
+			// Uncommitted: use index-based diffs (fast) instead of `git diff HEAD` (slow on large repos)
+			const [branchDiff, stagedDiff, unstagedDiff, status] = await Promise.all([
+				git.diff([`${baseRef}...HEAD`, "--no-color", "--", ...LOCK_EXCLUSIONS]).catch(() => ""),
+				git.diff(["--cached", "--no-color", "--", ...LOCK_EXCLUSIONS]),
+				git.diff(["--no-color", "--", ...LOCK_EXCLUSIONS]),
+				git.status(),
+			])
 
-			const untrackedFiles = status.not_added.filter((file) => {
-				if (file.endsWith(".lock")) return false;
-				if (file.includes("-lock.")) return false;
-				if (file.endsWith("package-lock.json")) return false;
-				if (file.endsWith("pnpm-lock.yaml")) return false;
-				if (file.endsWith("yarn.lock")) return false;
-				return true;
-			});
+			const untrackedFiles = status.not_added.filter(f => !isLockFile(f))
+			const untrackedDiff = untrackedFiles.length > 0 ? await diffUntrackedFiles(git, untrackedFiles) : ""
 
-			// git diff --no-index only accepts 2 paths, so we need to diff each file separately
-			// Also, git diff --no-index returns exit code 1 when files differ, which simple-git treats as error
-			// So we use raw() to get the output regardless of exit code
-			const untrackedDiffs: string[] = [];
-			for (const file of untrackedFiles) {
-				try {
-					const fileDiff = await git.raw([
-						"diff",
-						"--no-color",
-						"--no-index",
-						devNull,
-						file,
-					]);
-					if (fileDiff) {
-						untrackedDiffs.push(fileDiff);
-					}
-				} catch (error: unknown) {
-					// git diff --no-index returns exit code 1 when files differ
-					// simple-git throws but includes the diff output in the error
-					const gitError = error as { message?: string };
-					if (gitError.message && gitError.message.includes("diff --git")) {
-						// Extract the diff from the error message
-						const diffStart = gitError.message.indexOf("diff --git");
-						if (diffStart !== -1) {
-							untrackedDiffs.push(gitError.message.substring(diffStart));
-						}
-					}
-				}
-			}
-			const untrackedDiff = untrackedDiffs.join("\n");
-
-			const combinedDiff = [workingDiff, untrackedDiff]
-				.filter(Boolean)
-				.join("\n");
-
-			return { success: true, diff: combinedDiff };
+			return { success: true, diff: [branchDiff, stagedDiff, unstagedDiff, untrackedDiff].filter(Boolean).join("\n") }
 		}
 
-		// All committed - if onlyUncommitted mode, return empty diff
+		if (scope === "working") {
+			// Working diff: staged + unstaged + untracked (no `git diff HEAD` - uses index instead)
+			const [stagedDiff, unstagedDiff, status] = await Promise.all([
+				git.diff(["--cached", "--no-color", "--", ...LOCK_EXCLUSIONS]),
+				git.diff(["--no-color", "--", ...LOCK_EXCLUSIONS]),
+				git.status(),
+			])
+
+			const untrackedFiles = status.not_added.filter(f => !isLockFile(f))
+			const untrackedDiff = untrackedFiles.length > 0 ? await diffUntrackedFiles(git, untrackedFiles) : ""
+
+			return { success: true, diff: [stagedDiff, unstagedDiff, untrackedDiff].filter(Boolean).join("\n") }
+		}
+
+		// Legacy behavior (no scope specified): auto-detect
+		const status = await git.status();
+		if (!status.isClean()) {
+			// Use fast index-based diffs instead of slow `git diff HEAD`
+			const [stagedDiff, unstagedDiff] = await Promise.all([
+				git.diff(["--cached", "--no-color", "--", ...LOCK_EXCLUSIONS]),
+				git.diff(["--no-color", "--", ...LOCK_EXCLUSIONS]),
+			])
+			const untrackedFiles = status.not_added.filter(f => !isLockFile(f))
+			const untrackedDiff = untrackedFiles.length > 0 ? await diffUntrackedFiles(git, untrackedFiles) : ""
+			return { success: true, diff: [stagedDiff, unstagedDiff, untrackedDiff].filter(Boolean).join("\n") }
+		}
+
 		if (options?.onlyUncommitted) {
 			return { success: true, diff: "" };
 		}
 
-		// All committed - diff against base branch
+		// Clean tree, show branch diff
 		const targetBranch = baseBranch || await getDefaultBranch(worktreePath);
-
-		// Use origin if available, fallback to local branch
 		const baseRef = await refExistsLocally(worktreePath, `origin/${targetBranch}`)
-			? `origin/${targetBranch}`
-			: targetBranch;
-
+			? `origin/${targetBranch}` : targetBranch;
 		try {
-			const diff = await git.diff([
-				`${baseRef}...HEAD`,
-				"--no-color",
-				"--",
-				":!*.lock",
-				":!*-lock.*",
-				":!package-lock.json",
-				":!pnpm-lock.yaml",
-				":!yarn.lock",
-			]);
+			const diff = await git.diff([`${baseRef}...HEAD`, "--no-color", "--", ...LOCK_EXCLUSIONS]);
 			return { success: true, diff: diff || "" };
 		} catch {
 			return { success: true, diff: "" };
 		}
 	} catch (error) {
-		return {
-			success: false,
-			error: error instanceof Error ? error.message : "Unknown error",
-		};
+		return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
 	}
 }
 

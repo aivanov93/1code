@@ -25,7 +25,6 @@ import { APP_META } from "../../../shared/external-apps";
 import { fileViewerOpenAtomFamily, diffViewDisplayModeAtom, diffSidebarOpenAtomFamily, diffActiveTabAtom } from "../agents/atoms";
 import { useChangesStore } from "../../lib/stores/changes-store";
 import { usePRStatus } from "../../hooks/usePRStatus";
-import { useFileChangeListener } from "../../lib/hooks/use-file-change-listener";
 import type { ChangeCategory, ChangedFile, ParsedDiffFile } from "../../../shared/changes-types";
 import { cn } from "../../lib/utils";
 import { ChangesFileFilter, type SubChatFilterItem } from "./components/changes-file-filter";
@@ -333,7 +332,7 @@ export function ChangesView({
 	pushCount,
 	parsedFileDiffs = null,
 }: ChangesViewProps) {
-	useFileChangeListener(worktreePath);
+	// Auto-refresh disabled - use manual refresh button in header instead.
 
 	// Viewed files state from agents diff view (for showing eye icon and toggling)
 	const [viewedFiles, setViewedFiles] = useAtom(viewedFilesAtomFamily(chatId || ""));

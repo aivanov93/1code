@@ -2,6 +2,7 @@ import { EventEmitter } from "node:events"
 import { FALLBACK_SHELL, SHELL_CRASH_THRESHOLD_MS } from "./env"
 import { portManager } from "./port-manager"
 import { createSession, setupInitialCommands } from "./session"
+import { logStreamDiagnostic } from "../stream-diagnostics-log"
 import type {
 	CreateSessionParams,
 	SessionResult,
@@ -25,6 +26,10 @@ export class TerminalManager extends EventEmitter {
 		const existing = this.sessions.get(paneId)
 		if (existing?.isAlive) {
 			existing.lastActive = Date.now()
+			logStreamDiagnostic(
+				"info",
+				`[SD] TERM:REATTACH pane=${paneId} scope=${existing.scopeKey} workspace=${existing.workspaceId}`,
+			)
 			if (cols !== undefined && rows !== undefined) {
 				this.resize({ paneId, cols, rows })
 			}
@@ -62,6 +67,10 @@ export class TerminalManager extends EventEmitter {
 		this.setupExitHandler(session, params)
 
 		this.sessions.set(paneId, session)
+		logStreamDiagnostic(
+			"info",
+			`[SD] TERM:CREATE pane=${paneId} scope=${session.scopeKey} workspace=${session.workspaceId}`,
+		)
 
 		portManager.registerSession(session, workspaceId || "")
 
@@ -79,6 +88,10 @@ export class TerminalManager extends EventEmitter {
 
 		session.pty.onExit(async ({ exitCode, signal }) => {
 			session.isAlive = false
+			logStreamDiagnostic(
+				"info",
+				`[SD] TERM:EXIT pane=${paneId} scope=${session.scopeKey} workspace=${session.workspaceId} code=${exitCode} signal=${signal ?? "none"}`,
+			)
 
 			// Check if shell crashed quickly - try fallback
 			const sessionDuration = Date.now() - session.startTime
@@ -194,6 +207,10 @@ export class TerminalManager extends EventEmitter {
 		}
 
 		if (session.isAlive) {
+			logStreamDiagnostic(
+				"warn",
+				`[SD] TERM:KILL pane=${paneId} scope=${session.scopeKey} workspace=${session.workspaceId}`,
+			)
 			session.pty.kill()
 		} else {
 			this.sessions.delete(paneId)
@@ -213,6 +230,10 @@ export class TerminalManager extends EventEmitter {
 			session.serializedState = serializedState
 		}
 		session.lastActive = Date.now()
+		logStreamDiagnostic(
+			"info",
+			`[SD] TERM:DETACH pane=${paneId} scope=${session.scopeKey} workspace=${session.workspaceId} bytes=${serializedState?.length || 0}`,
+		)
 	}
 
 	clearScrollback(params: { paneId: string }): void {

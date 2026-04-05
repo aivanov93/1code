@@ -38,6 +38,46 @@ type WorktreeSetupFailurePayload = {
   projectId: string
 }
 
+/**
+ * Trim tool inputs/outputs and thinking content from older messages
+ * to reduce IPC payload size. Keeps full content for the last N user messages.
+ */
+function trimOlderMessages(messagesJson: string, keepFullCount = 5): string {
+  if (!messagesJson || messagesJson === "[]") return messagesJson
+  try {
+    const msgs = JSON.parse(messagesJson) as Array<{ role: string; parts?: Array<{ type: string; [k: string]: any }>;  [k: string]: any }>
+    // Find indices of user messages (from the end)
+    const userIndices: number[] = []
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      if (msgs[i].role === "user") {
+        userIndices.push(i)
+        if (userIndices.length >= keepFullCount) break
+      }
+    }
+    // Everything before the oldest "kept" user message gets trimmed
+    const cutoff = userIndices.length > 0 ? userIndices[userIndices.length - 1] : msgs.length
+    if (cutoff === 0) return messagesJson // nothing to trim
+
+    for (let i = 0; i < cutoff; i++) {
+      const msg = msgs[i]
+      if (msg.role !== "assistant" || !msg.parts) continue
+      msg.parts = msg.parts.map((part: any) => {
+        if (part.type?.startsWith("tool-")) {
+          // Keep type + toolCallId for structure, strip heavy fields
+          return { type: part.type, toolCallId: part.toolCallId, _trimmed: true }
+        }
+        if (part.type === "thinking") {
+          return { type: "thinking", _trimmed: true }
+        }
+        return part
+      })
+    }
+    return JSON.stringify(msgs)
+  } catch {
+    return messagesJson
+  }
+}
+
 function sendWorktreeSetupFailure(
   windowId: number | null,
   payload: WorktreeSetupFailurePayload,
@@ -202,7 +242,11 @@ export const chatsRouter = router({
         .where(eq(projects.id, chat.projectId))
         .get()
 
-      return { ...chat, subChats: chatSubChats, project }
+      const trimmedSubChats = chatSubChats.map(sc => ({
+        ...sc,
+        messages: trimOlderMessages(sc.messages),
+      }))
+      return { ...chat, subChats: trimmedSubChats, project }
     }),
 
   /**
@@ -647,7 +691,7 @@ export const chatsRouter = router({
             .get()
         : null
 
-      return { ...subChat, chat: chat ? { ...chat, project } : null }
+      return { ...subChat, messages: trimOlderMessages(subChat.messages), chat: chat ? { ...chat, project } : null }
     }),
 
   /**
@@ -1014,7 +1058,7 @@ export const chatsRouter = router({
    * Get git diff for a chat's worktree
    */
   getDiff: publicProcedure
-    .input(z.object({ chatId: z.string() }))
+    .input(z.object({ chatId: z.string(), scope: z.enum(["working", "branch"]).optional() }))
     .query(async ({ input }) => {
       const db = getDatabase()
       const chat = db
@@ -1030,6 +1074,7 @@ export const chatsRouter = router({
       const result = await getWorktreeDiff(
         chat.worktreePath,
         chat.baseBranch ?? undefined,
+        { scope: input.scope },
       )
 
       if (!result.success) {
@@ -1045,7 +1090,7 @@ export const chatsRouter = router({
    * Uses GitCache for instant responses when diff hasn't changed
    */
   getParsedDiff: publicProcedure
-    .input(z.object({ chatId: z.string() }))
+    .input(z.object({ chatId: z.string(), scope: z.enum(["working", "branch"]).optional() }))
     .query(async ({ input }) => {
       const diffPerf = makePerfLogger(`getParsedDiff:${input.chatId.slice(0, 8)}`)
       const db = getDatabase()
@@ -1066,11 +1111,11 @@ export const chatsRouter = router({
         }
       }
 
-      // 1. Get raw diff (only uncommitted changes - don't show branch diff after commit)
+      // 1. Get raw diff - scope controls what's shown
       const result = await getWorktreeDiff(
         chat.worktreePath,
         chat.baseBranch ?? undefined,
-        { onlyUncommitted: true },
+        { scope: input.scope ?? "working" },
       )
       diffPerf("loaded raw diff")
 

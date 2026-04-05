@@ -21,6 +21,8 @@ contextBridge.exposeInMainWorld("desktopApi", {
   arch: process.arch,
   getVersion: () => ipcRenderer.invoke("app:version"),
   isPackaged: () => ipcRenderer.invoke("app:isPackaged"),
+  appLog: (level: "info" | "warn" | "error", message: string) =>
+    ipcRenderer.send("app:log", { level, message }),
 
   // Auto-update methods
   checkForUpdates: (force?: boolean) => ipcRenderer.invoke("update:check", force),

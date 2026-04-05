@@ -48,6 +48,8 @@ import { usePRStatus } from "../../../../hooks/usePRStatus";
 import { PRIcon } from "../pr-icon";
 import { toast } from "sonner";
 import type { DiffViewMode } from "@/features/agents/ui/agent-diff-view";
+import { diffScopeAtom, type DiffScope } from "@/features/agents/ui/agent-diff-view";
+import { useAtom } from "jotai";
 import { getSyncActionKind } from "../../utils/sync-actions";
 import { usePushAction } from "../../hooks/use-push-action";
 
@@ -106,6 +108,30 @@ interface DiffSidebarHeaderProps {
 	// Diff view display mode (side-peek, center-peek, full-page)
 	displayMode?: "side-peek" | "center-peek" | "full-page";
 	onDisplayModeChange?: (mode: "side-peek" | "center-peek" | "full-page") => void;
+}
+
+const SCOPE_LABELS: Record<DiffScope, string> = { working: "Working", branch: "Branch" }
+
+function DiffScopePicker() {
+	const [scope, setScope] = useAtom(diffScopeAtom)
+	return (
+		<DropdownMenu>
+			<DropdownMenuTrigger asChild>
+				<Button variant="ghost" size="sm" className="h-6 px-1.5 gap-1 text-xs font-medium text-muted-foreground hover:text-foreground">
+					{SCOPE_LABELS[scope]}
+					<HiChevronDown className="size-3" />
+				</Button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent align="start" className="min-w-[120px]">
+				{(Object.keys(SCOPE_LABELS) as DiffScope[]).map(s => (
+					<DropdownMenuItem key={s} onClick={() => setScope(s)} className="text-xs gap-2">
+						<Check className={cn("size-3.5", scope === s ? "opacity-100" : "opacity-0")} />
+						{SCOPE_LABELS[s]}
+					</DropdownMenuItem>
+				))}
+			</DropdownMenuContent>
+		</DropdownMenu>
+	)
 }
 
 function formatTimeSince(date: Date): string {
@@ -478,6 +504,9 @@ export const DiffSidebarHeader = memo(function DiffSidebarHeader({
 						{currentBranch || "No branch"}
 					</span>
 				</div>
+
+				{/* Diff scope picker */}
+				<DiffScopePicker />
 
 				{/* PR Status badge */}
 				{pr && (

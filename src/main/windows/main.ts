@@ -20,6 +20,7 @@ import { makePerfLogger } from "../lib/perf"
 import { hasActiveClaudeSessions, abortAllClaudeSessions } from "../lib/trpc/routers/claude"
 import { hasActiveCodexStreams, abortAllCodexStreams } from "../lib/trpc/routers/codex"
 import { registerThemeScannerIPC } from "../lib/vscode-theme-scanner"
+import { writeStreamDiagnostic, type StreamDiagnosticLevel } from "../lib/stream-diagnostics-log"
 import { DESKTOP_LOCAL_ONLY } from "../../shared/local-mode"
 import { windowManager } from "./window-manager"
 
@@ -49,6 +50,13 @@ function registerIpcHandlers(): void {
   // App info
   ipcMain.handle("app:version", () => app.getVersion())
   ipcMain.handle("app:isPackaged", () => app.isPackaged)
+  ipcMain.on(
+    "app:log",
+    (_event, payload: { level?: StreamDiagnosticLevel; message?: string }) => {
+      if (!payload?.message?.startsWith("[SD]")) return
+      writeStreamDiagnostic(payload.level || "info", `[renderer] ${payload.message}`)
+    },
+  )
 
   // Windows: Frame preference persistence
   ipcMain.handle("window:set-frame-preference", (_event, useNativeFrame: boolean) => {

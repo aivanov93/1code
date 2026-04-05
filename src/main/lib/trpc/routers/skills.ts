@@ -154,7 +154,14 @@ const listSkillsProcedure = publicProcedure
       ])
     const pluginSkills = pluginSkillsArrays.flat()
 
-    return [...projectSkills, ...userSkills, ...pluginSkills]
+    // Deduplicate by name (first occurrence wins: project > user > plugin)
+    const all = [...projectSkills, ...userSkills, ...pluginSkills]
+    const seen = new Set<string>()
+    return all.filter((s) => {
+      if (seen.has(s.name)) return false
+      seen.add(s.name)
+      return true
+    })
   })
 
 /**

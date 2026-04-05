@@ -82,6 +82,7 @@ import { trpcClient } from "../../../lib/trpc"
 import { remoteApi } from "../../../lib/remote-api"
 import type { ReviewCommentDraft } from "../lib/review-comment-drafts"
 export type DiffViewMode = "unified" | "split"
+export type DiffScope = "working" | "branch"
 
 const LARGE_DIFF_LINE_THRESHOLD = 2000
 
@@ -196,6 +197,11 @@ export type ParsedDiffFile = {
 export const diffViewModeAtom = atomWithStorage<DiffViewMode>(
   "agents-diff:view-mode-v2",
   "unified",
+)
+
+export const diffScopeAtom = atomWithStorage<DiffScope>(
+  "agents-diff:scope",
+  "working",
 )
 
 /**

@@ -95,7 +95,7 @@ export const KanbanCard = memo(function KanbanCard({
       )}
 
       {/* Content */}
-      <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+      <div className="flex-1 min-w-0 flex flex-col">
         {/* First row: name + status indicator (справа!) */}
         <div className="flex items-center gap-1">
           <span className="truncate block text-sm leading-tight flex-1">
@@ -210,7 +210,7 @@ export const KanbanCard = memo(function KanbanCard({
         type="button"
         onClick={onClick}
         className={cn(
-          "w-full text-left py-1.5 cursor-pointer group relative",
+          "w-full text-left py-0.5 cursor-pointer group relative",
           "pl-2 pr-2 rounded-md",
           "bg-card border border-border/50",
           "hover:bg-accent/50 hover:border-border",
@@ -230,7 +230,7 @@ export const KanbanCard = memo(function KanbanCard({
           type="button"
           onClick={onClick}
           className={cn(
-            "w-full text-left py-1.5 cursor-pointer group relative",
+            "w-full text-left py-0.5 cursor-pointer group relative",
             "pl-2 pr-2 rounded-md",
             "bg-card border border-border/50",
             "hover:bg-accent/50 hover:border-border",

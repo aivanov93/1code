@@ -245,20 +245,8 @@ export function SubChatSelector({
   const archiveAgentHotkey = useResolvedHotkeyDisplay("archive-agent")
   const newAgentHotkey = useResolvedHotkeyDisplay("new-agent")
 
-  // Pending plan approvals from DB - only for open sub-chats
-  const { data: pendingPlanApprovalsData } = trpc.chats.getPendingPlanApprovals.useQuery(
-    { openSubChatIds },
-    { refetchInterval: 5000, enabled: openSubChatIds.length > 0, placeholderData: (prev) => prev }
-  )
-  const pendingPlanApprovals = useMemo(() => {
-    const set = new Set<string>()
-    if (pendingPlanApprovalsData) {
-      for (const { subChatId } of pendingPlanApprovalsData) {
-        set.add(subChatId)
-      }
-    }
-    return set
-  }, [pendingPlanApprovalsData])
+  // Disabled: 5s poll was causing ~500ms main-process blocks
+  const pendingPlanApprovals = useMemo(() => new Set<string>(), [])
 
   const tabsContainerRef = useRef<HTMLDivElement>(null)
   const tabRefs = useRef<Map<string, HTMLButtonElement>>(new Map())

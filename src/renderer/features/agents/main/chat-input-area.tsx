@@ -1082,6 +1082,21 @@ export const ChatInputArea = memo(function ChatInputArea({
     setShowingToolsList(false)
   }, [editorRef])
 
+  // $ skill trigger handlers
+  const handleDollarTrigger = useCallback(
+    ({ searchText, rect }: { searchText: string; rect: DOMRect }) => {
+      console.log("[DollarTrigger] fired with searchText:", JSON.stringify(searchText))
+      setSkillSearchText(searchText)
+      setSkillPosition({ top: rect.top, left: rect.left })
+      setShowSkillDropdown(true)
+    },
+    [],
+  )
+
+  const handleCloseDollarTrigger = useCallback(() => {
+    setShowSkillDropdown(false)
+  }, [])
+
   // Slash command handlers
   const handleSlashTrigger = useCallback(
     ({ searchText, rect }: { searchText: string; rect: DOMRect }) => {
@@ -1459,12 +1474,8 @@ export const ChatInputArea = memo(function ChatInputArea({
                     setShowingAgentsList(false)
                     setShowingToolsList(false)
                   }}
-                  onDollarTrigger={({ searchText, rect }) => {
-                    setSkillSearchText(searchText)
-                    setSkillPosition({ top: rect.top, left: rect.left })
-                    setShowSkillDropdown(true)
-                  }}
-                  onCloseDollarTrigger={() => setShowSkillDropdown(false)}
+                  onDollarTrigger={handleDollarTrigger}
+                  onCloseDollarTrigger={handleCloseDollarTrigger}
                   onSlashTrigger={handleSlashTrigger}
                   onCloseSlashTrigger={handleCloseSlashTrigger}
                   onContentChange={handleContentChange}

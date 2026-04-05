@@ -177,7 +177,7 @@ const SidebarSearchHistoryPopover = memo(function SidebarSearchHistoryPopover({
             ) : isLoading ? (
               <IconSpinner className="w-4 h-4 text-muted-foreground" />
             ) : (
-              <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
+              <div className="w-2.5 h-2.5 rounded-full bg-[#99cc99]" />
             )}
           </div>
         )}
@@ -328,20 +328,8 @@ export function AgentsSubChatsSidebar({
   const pendingQuestionsMap = useAtomValue(pendingUserQuestionsAtom)
   const defaultAgentMode = useAtomValue(defaultAgentModeAtom)
 
-  // Pending plan approvals from DB - only for open sub-chats
-  const { data: pendingPlanApprovalsData } = trpc.chats.getPendingPlanApprovals.useQuery(
-    { openSubChatIds },
-    { refetchInterval: 5000, enabled: openSubChatIds.length > 0, placeholderData: (prev) => prev }
-  )
-  const pendingPlanApprovals = useMemo(() => {
-    const set = new Set<string>()
-    if (pendingPlanApprovalsData) {
-      for (const { subChatId } of pendingPlanApprovalsData) {
-        set.add(subChatId)
-      }
-    }
-    return set
-  }, [pendingPlanApprovalsData])
+  // Disabled: 5s poll was causing ~500ms main-process blocks
+  const pendingPlanApprovals = useMemo(() => new Set<string>(), [])
 
   // Unified undo stack for Cmd+Z support
   const setUndoStack = useSetAtom(undoStackAtom)
@@ -1202,7 +1190,7 @@ export function AgentsSubChatsSidebar({
             >
               {filteredSubChats.length > 0 ? (
                 <div
-                  className={cn("mb-4", isMultiSelectMode ? "px-0" : "-mx-1")}
+                  className={cn("mb-2", isMultiSelectMode ? "px-0" : "-mx-1")}
                 >
                   {/* Pinned section */}
                   {pinnedChats.length > 0 && (
@@ -1217,7 +1205,7 @@ export function AgentsSubChatsSidebar({
                           Pinned Chats
                         </h3>
                       </div>
-                      <div className="list-none p-0 m-0 mb-3">
+                      <div className="list-none p-0 m-0 mb-1.5">
                         {pinnedChats.map((subChat) => {
                           const isSubChatLoading = loadingChatIds.has(
                             subChat.id,
@@ -1308,7 +1296,7 @@ export function AgentsSubChatsSidebar({
                                     handleSubChatMouseLeave()
                                   }}
                                   className={cn(
-                                    "w-full text-left py-1 transition-colors duration-75 cursor-pointer group relative",
+                                    "w-full text-left py-0.5 transition-colors duration-75 cursor-pointer group relative",
                                     "outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70",
                                     isMultiSelectMode ? "px-3" : "pl-2 pr-2",
                                     isMultiSelectMode ? "" : "rounded-md",
@@ -1341,11 +1329,11 @@ export function AgentsSubChatsSidebar({
                                         ) : hasPendingPlan ? (
                                           <div className="w-2 h-2 rounded-full bg-amber-500" />
                                         ) : (
-                                          <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
+                                          <div className="w-2.5 h-2.5 rounded-full bg-[#99cc99]" />
                                         )}
                                       </div>
                                     ) : null}
-                                    <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                                    <div className="flex-1 min-w-0 flex flex-col">
                                       <div className="flex items-center gap-1">
                                         {editingSubChatId === subChat.id ? (
                                           <InlineRenameInput
@@ -1587,7 +1575,7 @@ export function AgentsSubChatsSidebar({
                                     handleSubChatMouseLeave()
                                   }}
                                   className={cn(
-                                    "w-full text-left py-1 transition-colors duration-75 cursor-pointer group relative",
+                                    "w-full text-left py-0.5 transition-colors duration-75 cursor-pointer group relative",
                                     "outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70",
                                     isMultiSelectMode ? "px-3" : "pl-2 pr-2",
                                     isMultiSelectMode ? "" : "rounded-md",
@@ -1620,11 +1608,11 @@ export function AgentsSubChatsSidebar({
                                         ) : hasPendingPlan ? (
                                           <div className="w-2 h-2 rounded-full bg-amber-500" />
                                         ) : (
-                                          <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
+                                          <div className="w-2.5 h-2.5 rounded-full bg-[#99cc99]" />
                                         )}
                                       </div>
                                     ) : null}
-                                    <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                                    <div className="flex-1 min-w-0 flex flex-col">
                                       <div className="flex items-center gap-1">
                                         {editingSubChatId === subChat.id ? (
                                           <InlineRenameInput

@@ -41,14 +41,13 @@ import {
 import { usePrefetchLocalChat } from "../../lib/hooks/use-prefetch-local-chat"
 import { ArchivePopover } from "../agents/ui/archive-popover"
 import { ChevronDown, ChevronRight, MoreHorizontal, Columns3, ArrowUpRight, FolderIcon, Plus } from "lucide-react"
-import * as LucideIcons from "lucide-react"
 import { useQuery } from "@tanstack/react-query"
 import { remoteTrpc } from "../../lib/remote-trpc"
 // Desktop: archive is handled inline, not via hook
 import { OpenLocallyDialog } from "../agents/components/open-locally-dialog"
 import { useAutoImport } from "../agents/hooks/use-auto-import"
 import { ConfirmArchiveDialog } from "../../components/confirm-archive-dialog"
-import { ManageFoldersDialog } from "./manage-folders-dialog"
+const ManageFoldersDialog = React.lazy(() => import("./manage-folders-dialog").then(m => ({ default: m.ManageFoldersDialog })))
 import { ProjectIcon } from "../../components/ui/project-icon"
 import { trpc } from "../../lib/trpc"
 import { toast } from "sonner"
@@ -137,17 +136,7 @@ import { DESKTOP_LOCAL_ONLY } from "../../../shared/local-mode"
 const FEEDBACK_URL =
   import.meta.env.VITE_FEEDBACK_URL || "https://discord.gg/8ektTZGnj4"
 
-/** Resolve a Lucide icon name (kebab-case) to its React component */
-function getFolderIcon(iconName: string): React.ComponentType<{ className?: string; style?: React.CSSProperties }> {
-  // Convert kebab-case to PascalCase for Lucide import lookup
-  const pascalName = iconName
-    .split("-")
-    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-    .join("")
-  const Icon = (LucideIcons as Record<string, unknown>)[pascalName]
-  if (Icon && (typeof Icon === "function" || typeof Icon === "object")) return Icon as React.ComponentType<{ className?: string; style?: React.CSSProperties }>
-  return FolderIcon
-}
+import { getFolderIcon } from "./folder-icon-map"
 
 // Folder context to avoid threading folders through every prop layer
 type FolderData = { id: string; name: string; icon: string; color: string; system: boolean }
@@ -275,7 +264,7 @@ const ChatIcon = React.memo(function ChatIcon({
 }) {
   const hasStatus = hasPendingQuestion || isLoading || hasUnseenChanges || hasPendingPlan
 
-  if (!showIcon && !isMultiSelectMode) return null
+  // Status always shows on the left regardless of showIcon setting
 
   return (
     <div className="relative flex-shrink-0 w-4 h-4">
@@ -306,7 +295,7 @@ const ChatIcon = React.memo(function ChatIcon({
                 className="w-2 h-2 rounded-full bg-amber-500" />
             ) : (
               <motion.div key="done" initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.5 }} transition={{ duration: 0.15 }}>
-                <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
+                <div className="w-2.5 h-2.5 rounded-full bg-[#99cc99]" />
               </motion.div>
             )}
           </AnimatePresence>
@@ -352,7 +341,7 @@ const DraftItem = React.memo(function DraftItem({
     <div
       onClick={() => onSelect(draftId)}
       className={cn(
-        "w-full text-left py-1.5 cursor-pointer group relative",
+        "w-full text-left py-0.5 cursor-pointer group relative",
         "transition-colors duration-75",
         "outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70",
         isMultiSelectMode ? "px-3" : "pl-2 pr-2",
@@ -374,7 +363,7 @@ const DraftItem = React.memo(function DraftItem({
             </div>
           </div>
         )}
-        <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+        <div className="flex-1 min-w-0 flex flex-col">
           <div className="flex items-center gap-1">
             <span className="truncate block text-sm leading-tight flex-1">
               {draftText.slice(0, 50)}
@@ -588,7 +577,7 @@ const AgentChatItem = React.memo(function AgentChatItem({
           }}
           onMouseLeave={onMouseLeave}
           className={cn(
-            "w-full text-left py-1.5 cursor-pointer group relative",
+            "w-full text-left py-0.5 cursor-pointer group relative",
             "transition-colors duration-75",
             "outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70",
             // In multi-select: px-3 compensates for removed container px-2, keeping text aligned
@@ -609,9 +598,7 @@ const AgentChatItem = React.memo(function AgentChatItem({
           )}
         >
           <div className="flex items-start gap-2.5">
-            {/* Icon container - only render if showIcon or in multi-select mode */}
-            {(showIcon || isMultiSelectMode) && (
-              <div className="pt-0.5">
+            <div className="pt-0.5">
                 <ChatIcon
                   isSelected={isSelected}
                   isLoading={isLoading}
@@ -629,8 +616,7 @@ const AgentChatItem = React.memo(function AgentChatItem({
                   showIcon={showIcon}
                 />
               </div>
-            )}
-            <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+            <div className="flex-1 min-w-0 flex flex-col">
               <div className="flex items-center gap-1">
                 {isEditing ? (
                   <input
@@ -661,56 +647,9 @@ const AgentChatItem = React.memo(function AgentChatItem({
                     />
                   </span>
                 )}
-                {/* Archive button or inline loader/status when icon is hidden */}
+                {/* Archive button */}
                 {!isMultiSelectMode && !isMobileFullscreen && (
                   <div className="flex-shrink-0 w-3.5 h-3.5 flex items-center justify-center relative">
-                    {/* Inline loader/status when icon is hidden - always visible, hides on hover */}
-                    {!showIcon && (hasPendingQuestion || isLoading || hasUnseenChanges || hasPendingPlan) && (
-                      <div className="absolute inset-0 flex items-center justify-center transition-opacity duration-150 group-hover:opacity-0">
-                        <AnimatePresence mode="wait">
-                          {hasPendingQuestion ? (
-                            <motion.div
-                              key="question"
-                              initial={{ opacity: 0, scale: 0.5 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              exit={{ opacity: 0, scale: 0.5 }}
-                              transition={{ duration: 0.15 }}
-                            >
-                              <QuestionIcon className="w-3.5 h-3.5 text-blue-500" />
-                            </motion.div>
-                          ) : isLoading ? (
-                            <motion.div
-                              key="loading"
-                              initial={{ opacity: 0, scale: 0.5 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              exit={{ opacity: 0, scale: 0.5 }}
-                              transition={{ duration: 0.15 }}
-                            >
-                              <LoadingDot isLoading={true} className="w-3.5 h-3.5 text-muted-foreground" />
-                            </motion.div>
-                          ) : hasPendingPlan ? (
-                            <motion.div
-                              key="plan"
-                              initial={{ opacity: 0, scale: 0.5 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              exit={{ opacity: 0, scale: 0.5 }}
-                              transition={{ duration: 0.15 }}
-                              className="w-2 h-2 rounded-full bg-amber-500"
-                            />
-                          ) : (
-                            <motion.div
-                              key="done"
-                              initial={{ opacity: 0, scale: 0.5 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              exit={{ opacity: 0, scale: 0.5 }}
-                              transition={{ duration: 0.15 }}
-                            >
-                              <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                    )}
                     {/* Archive button - appears on hover */}
                     <button
                       onClick={(e) => {
@@ -997,7 +936,7 @@ const ChatListSection = React.memo(function ChatListSection({
       {title && (
         <div
           className={cn(
-            "flex items-center h-4 mb-1",
+            "flex items-center h-4 mb-0.5",
             isMultiSelectMode ? "pl-3" : "pl-2",
           )}
         >
@@ -1006,7 +945,7 @@ const ChatListSection = React.memo(function ChatListSection({
           </h3>
         </div>
       )}
-      <div className="list-none p-0 m-0 mb-1">
+      <div className="list-none p-0 m-0 mb-0.5">
         {chats.map((chat) => {
           const isLoading = loadingChatIds.has(chat.id)
           // For remote chats, compare without prefix; for local, compare directly
@@ -1239,7 +1178,7 @@ const InboxButton = memo(function InboxButton() {
       type="button"
       onClick={handleClick}
       className={cn(
-        "flex items-center gap-2.5 w-full pl-2 pr-2 py-1.5 rounded-md text-sm transition-colors duration-150",
+        "flex items-center gap-2.5 w-full pl-2 pr-2 py-0.5 rounded-md text-sm transition-colors duration-150",
         isActive
           ? "bg-foreground/5 text-foreground"
           : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
@@ -1271,7 +1210,7 @@ const AutomationsButton = memo(function AutomationsButton() {
       type="button"
       onClick={handleClick}
       className={cn(
-        "group flex items-center gap-2.5 w-full pl-2 pr-2 py-1.5 rounded-md text-sm transition-colors duration-150",
+        "group flex items-center gap-2.5 w-full pl-2 pr-2 py-0.5 rounded-md text-sm transition-colors duration-150",
         "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
       )}
     >
@@ -1740,17 +1679,7 @@ export function AgentsSidebar({
     return allIds
   }, [agentChats, openSubChatsVersion])
 
-  // File changes stats from DB - only for open sub-chats
-  const { data: fileStatsData } = trpc.chats.getFileStats.useQuery(
-    { openSubChatIds: allOpenSubChatIds },
-    { refetchInterval: 5000, enabled: allOpenSubChatIds.length > 0, placeholderData: (prev) => prev }
-  )
-
-  // Pending plan approvals from DB - only for open sub-chats
-  const { data: pendingPlanApprovalsData } = trpc.chats.getPendingPlanApprovals.useQuery(
-    { openSubChatIds: allOpenSubChatIds },
-    { refetchInterval: 5000, enabled: allOpenSubChatIds.length > 0, placeholderData: (prev) => prev }
-  )
+  // Disabled: these 5s polls were causing ~500ms main-process blocks (DB + superjson serialization)
 
   // Fetch all projects for git info
   const { data: projects } = trpc.projects.list.useQuery()
@@ -2227,35 +2156,8 @@ export function AgentsSidebar({
     [loadingSubChats],
   )
 
-  // Convert file stats to a Map for easy lookup (only for local chats)
-  // Remote chat stats are provided directly via chat.remoteStats
-  const workspaceFileStats = useMemo(() => {
-    const statsMap = new Map<string, { fileCount: number; additions: number; deletions: number }>()
-
-    // For local mode, use stats from DB query
-    if (fileStatsData) {
-      for (const stat of fileStatsData) {
-        statsMap.set(stat.chatId, {
-          fileCount: stat.fileCount,
-          additions: stat.additions,
-          deletions: stat.deletions,
-        })
-      }
-    }
-
-    return statsMap
-  }, [fileStatsData])
-
-  // Aggregate pending plan approvals by workspace (chatId) from DB
-  const workspacePendingPlans = useMemo(() => {
-    const chatIdsWithPendingPlans = new Set<string>()
-    if (pendingPlanApprovalsData) {
-      for (const { chatId } of pendingPlanApprovalsData) {
-        chatIdsWithPendingPlans.add(chatId)
-      }
-    }
-    return chatIdsWithPendingPlans
-  }, [pendingPlanApprovalsData])
+  const workspaceFileStats = useMemo(() => new Map<string, { fileCount: number; additions: number; deletions: number }>(), [])
+  const workspacePendingPlans = useMemo(() => new Set<string>(), [])
 
   // Get workspace IDs that have pending user questions
   const workspacePendingQuestions = useMemo(() => {
@@ -2945,10 +2847,10 @@ export function AgentsSidebar({
         >
           {/* Drafts Section - always show regardless of chat source mode */}
           {drafts.length > 0 && !searchQuery && (
-            <div className={cn("mb-4", isMultiSelectMode ? "px-0" : "-mx-1")}>
+            <div className={cn("mb-2", isMultiSelectMode ? "px-0" : "-mx-1")}>
               <div
                 className={cn(
-                  "flex items-center h-4 mb-1",
+                  "flex items-center h-4 mb-0.5",
                   isMultiSelectMode ? "pl-3" : "pl-2",
                 )}
               >
@@ -2983,7 +2885,7 @@ export function AgentsSidebar({
           {/* Folder Sections */}
           <FolderContext.Provider value={folderContextValue}>
           {foldersData && foldersData.length > 0 && (
-            <div className={cn("mb-4", isMultiSelectMode ? "px-0" : "-mx-1")}>
+            <div className={cn("mb-2", isMultiSelectMode ? "px-0" : "-mx-1")}>
               {foldersData.map((folder) => {
                 const folderChats = chatsByFolder.get(folder.id) ?? []
                 const IconComponent = getFolderIcon(folder.icon)
@@ -2994,7 +2896,7 @@ export function AgentsSidebar({
                       type="button"
                       onClick={() => handleToggleFolderCollapse(folder.id)}
                       className={cn(
-                        "flex items-center gap-1.5 w-full h-6 mt-1 mb-1 group border-y",
+                        "flex items-center gap-1.5 w-full h-6 mt-0.5 mb-0.5 group border-y",
                         isMultiSelectMode ? "pl-3 pr-2" : "pl-2 pr-2",
                       )}
                       style={{
@@ -3251,11 +3153,15 @@ export function AgentsSidebar({
         remoteSubChatId={null}
       />
 
-      {/* Manage Folders Dialog */}
-      <ManageFoldersDialog
-        open={manageFoldersOpen}
-        onOpenChange={setManageFoldersOpen}
-      />
+      {/* Manage Folders Dialog - lazy-loaded because it imports all lucide icons for the picker */}
+      {manageFoldersOpen && (
+        <React.Suspense fallback={null}>
+          <ManageFoldersDialog
+            open={manageFoldersOpen}
+            onOpenChange={setManageFoldersOpen}
+          />
+        </React.Suspense>
+      )}
     </>
   )
 }

@@ -181,6 +181,12 @@ export function SubChatContextMenu({
           Add as split
         </ContextMenuItem>
       ) : null}
+      <ContextMenuItem onClick={() => {
+        navigator.clipboard.writeText(subChat.id)
+        toast.success("Chat ID copied to clipboard")
+      }}>
+        Copy chat ID
+      </ContextMenuItem>
       <ContextMenuSeparator />
 
       {showCloseTabOptions ? (

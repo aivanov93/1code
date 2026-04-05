@@ -147,7 +147,7 @@ export class ACPChatTransport implements ChatTransport<UIMessage> {
         let streamCancelled = false
 
         // Stale stream detection + diagnostics (mirrors IPC transport)
-        const STALE_TIMEOUT_MS = 60_000
+        const STALE_TIMEOUT_MS = 180_000
         const streamStartedAt = Date.now()
         let lastChunkAt = Date.now()
         let chunkCount = 0

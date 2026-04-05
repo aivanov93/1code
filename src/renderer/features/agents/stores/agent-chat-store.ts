@@ -9,6 +9,7 @@ const chats = new Map<string, Chat<any>>()
 const streamIds = new Map<string, string | null>()
 const parentChatIds = new Map<string, string>() // subChatId → parentChatId (stored at creation time)
 const manuallyAborted = new Map<string, boolean>() // Track if chat was manually stopped
+const abortReasons = new Map<string, string>()
 
 export const agentChatStore = {
   get: (id: string) => chats.get(id),
@@ -29,6 +30,7 @@ export const agentChatStore = {
     streamIds.delete(id)
     parentChatIds.delete(id)
     manuallyAborted.delete(id)
+    abortReasons.delete(id)
   },
 
   // Get the ORIGINAL parentChatId that was set when the Chat was created
@@ -47,6 +49,14 @@ export const agentChatStore = {
   clearManuallyAborted: (id: string) => {
     manuallyAborted.delete(id)
   },
+  setAbortReason: (id: string, reason: string) => {
+    abortReasons.set(id, reason)
+  },
+  consumeAbortReason: (id: string) => {
+    const reason = abortReasons.get(id)
+    abortReasons.delete(id)
+    return reason
+  },
 
   clear: () => {
     for (const chat of chats.values()) {
@@ -56,5 +66,6 @@ export const agentChatStore = {
     streamIds.clear()
     parentChatIds.clear()
     manuallyAborted.clear()
+    abortReasons.clear()
   },
 }

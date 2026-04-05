@@ -180,6 +180,8 @@ interface DetailsSidebarProps {
   isGitStatusLoading?: boolean
   /** Current branch name for header */
   currentBranch?: string
+  /** Manually refresh diff stats (auto-refresh disabled) */
+  onRefreshDiff?: () => void
   /** Callbacks to expand widgets to legacy sidebars */
   onExpandTerminal?: () => void
   onExpandPlan?: () => void
@@ -220,6 +222,7 @@ export function DetailsSidebar({
   gitStatus,
   isGitStatusLoading,
   currentBranch,
+  onRefreshDiff,
   onExpandTerminal,
   onExpandPlan,
   onExpandDiff,
@@ -417,6 +420,7 @@ export function DetailsSidebar({
                     hasUpstream={gitStatus?.hasUpstream ?? true}
                     isSyncStatusLoading={isGitStatusLoading}
                     currentBranch={currentBranch}
+                    onRefresh={onRefreshDiff}
                     // For remote chats on desktop, don't provide expand/file actions
                     onExpand={canOpenDiff ? onExpandDiff : undefined}
                     onFileSelect={canOpenDiff ? onFileSelect : undefined}

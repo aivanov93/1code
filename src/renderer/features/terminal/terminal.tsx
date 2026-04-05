@@ -25,6 +25,7 @@ import { sanitizeForTitle } from "./commandBuffer"
 import { shellEscapePaths } from "./utils"
 import { TerminalSearch } from "./TerminalSearch"
 import type { TerminalProps, TerminalStreamEvent } from "./types"
+import { logStreamDiagnostic } from "../agents/lib/stream-diagnostics-log"
 import "xterm/css/xterm.css"
 
 export function Terminal({
@@ -137,6 +138,10 @@ export function Terminal({
     const container = containerRef.current
     if (!container) return
 
+    logStreamDiagnostic(
+      "info",
+      `[SD] TERM:MOUNT pane=${paneId} scope=${scopeKey} workspace=${workspaceId}`,
+    )
     console.log("[Terminal:useEffect] MOUNT - paneId:", paneId)
     console.log(
       "[Terminal:useEffect] Container rect:",
@@ -253,11 +258,15 @@ export function Terminal({
         cwd: initialCwd || cwd,
         initialCommands,
       },
-      {
-        onSuccess: (result) => {
-          applySerializedState(result.serializedState)
-          xterm.focus()
-        },
+        {
+          onSuccess: (result) => {
+            logStreamDiagnostic(
+              "info",
+              `[SD] TERM:ATTACH pane=${paneId} scope=${scopeKey} workspace=${workspaceId} isNew=${result.isNew}`,
+            )
+            applySerializedState(result.serializedState)
+            xterm.focus()
+          },
         onError: (err) => {
           xterm.write(
             `\x1b[31m[Failed to start terminal: ${err.message}]\x1b[0m\r\n`,
@@ -326,6 +335,10 @@ export function Terminal({
 
     // Cleanup on unmount
     return () => {
+      logStreamDiagnostic(
+        "info",
+        `[SD] TERM:UNMOUNT pane=${paneId} scope=${scopeKey} workspace=${workspaceId}`,
+      )
       console.log("[Terminal:useEffect] UNMOUNT - paneId:", paneId)
       isUnmounted = true
       inputDisposable.dispose()
@@ -341,6 +354,10 @@ export function Terminal({
       // Serialize terminal state before detaching
       console.log("[Terminal:useEffect] Serializing state before detach...")
       const serializedState = serializeAddon.serialize()
+      logStreamDiagnostic(
+        "info",
+        `[SD] TERM:DETACH pane=${paneId} scope=${scopeKey} workspace=${workspaceId} bytes=${serializedState.length}`,
+      )
 
       // Detach instead of kill - keeps session alive for reattach
       detachRef.current({ paneId, serializedState })

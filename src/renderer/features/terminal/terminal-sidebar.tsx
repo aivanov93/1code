@@ -40,6 +40,7 @@ import {
 import { trpc } from "@/lib/trpc"
 import type { TerminalInstance } from "./types"
 import { isSharedTerminalScope } from "./utils"
+import { logStreamDiagnostic } from "../agents/lib/stream-diagnostics-log"
 
 // Animation constants - keep in sync with ResizableSidebar animationDuration
 const SIDEBAR_ANIMATION_DURATION_SECONDS = 0 // Disabled for performance
@@ -393,6 +394,10 @@ export function TerminalSidebar({
       trpcUtils.terminal.listSessionsByScopeKey
         .fetch({ scopeKey })
         .then((sessions) => {
+          logStreamDiagnostic(
+            "info",
+            `[SD] TERM:RESTORE scope=${scopeKey} sessions=${sessions.length}`,
+          )
           if (sessions.length > 0) {
             // Reconstruct TerminalInstance records from existing backend sessions
             const instances = sessions.map((s, i) => ({
@@ -778,6 +783,10 @@ export function TerminalBottomPanelContent({
       trpcUtils.terminal.listSessionsByScopeKey
         .fetch({ scopeKey })
         .then((sessions) => {
+          logStreamDiagnostic(
+            "info",
+            `[SD] TERM:RESTORE scope=${scopeKey} sessions=${sessions.length}`,
+          )
           if (sessions.length > 0) {
             const instances = sessions.map((s, i) => ({
               id: s.paneId.split(":term:")[1] || generateTerminalId(),

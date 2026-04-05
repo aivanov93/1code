@@ -69,7 +69,7 @@ import {
   sessionInfoAtom,
   soundNotificationsEnabledAtom
 } from "../../../lib/atoms"
-import { useFileChangeListener, useGitWatcher } from "../../../lib/hooks/use-file-change-listener"
+// useFileChangeListener / useGitWatcher removed - manual refresh only
 import { useRemoteChat } from "../../../lib/hooks/use-remote-chats"
 import { useResolvedHotkeyDisplay } from "../../../lib/hotkeys"
 import { appStore } from "../../../lib/jotai-store"
@@ -187,6 +187,7 @@ import {
   toQueuedTextContext, toQueuedDiffTextContext, toQueuedPastedText, type DiffTextContext, type SelectedTextContext
 } from "../lib/queue-utils"
 import { RemoteChatTransport } from "../lib/remote-chat-transport"
+import { logStreamDiagnostic } from "../lib/stream-diagnostics-log"
 import {
   FileOpenProvider,
   MENTION_PREFIXES,
@@ -214,6 +215,7 @@ import type { DiffViewMode } from "../ui/agent-diff-view"
 import {
   AgentDiffView,
   diffViewModeAtom,
+  diffScopeAtom,
   splitUnifiedDiffByFile,
   type AgentDiffViewRef,
   type ParsedDiffFile,
@@ -2474,6 +2476,7 @@ const ChatViewInner = memo(function ChatViewInner({
     const timer = setTimeout(() => {
       if (isStreamingRef.current && !messages.some((m) => m.role === "assistant")) {
         console.warn(`[chat] Safety timeout: stream stuck in "submitted" for 60s, stopping. sub=${subChatId.slice(-8)}`)
+        agentChatStore.setAbortReason(subChatId, "submitted-safety-timeout")
         stopRef.current()
       }
     }, 60_000)
@@ -2498,9 +2501,10 @@ const ChatViewInner = memo(function ChatViewInner({
   }, [])
 
   // Handler to stop streaming - memoized to prevent ChatInputArea re-renders
-  const handleStop = useCallback(async () => {
+  const handleStop = useCallback(async (reason = "ui-stop") => {
     // Mark as manually aborted to prevent completion sound
     agentChatStore.setManuallyAborted(subChatId, true)
+    agentChatStore.setAbortReason(subChatId, reason)
     await stopRef.current()
   }, [subChatId])
 
@@ -3066,8 +3070,7 @@ const ChatViewInner = memo(function ChatViewInner({
 
           // Stop stream if currently streaming
           if (isStreamingRef.current) {
-            agentChatStore.setManuallyAborted(subChatId, true)
-            await stopRef.current()
+            await handleStop("question-custom-text")
             await new Promise((resolve) => setTimeout(resolve, 100))
           }
 
@@ -3632,15 +3635,13 @@ const ChatViewInner = memo(function ChatViewInner({
         await handleQuestionsSkip()
       } else if (shouldStop) {
         e.preventDefault()
-        // Mark as manually aborted to prevent completion sound
-        agentChatStore.setManuallyAborted(subChatId, true)
-        await stop()
+        await handleStop("keyboard-stop")
       }
     }
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [isActive, isStreaming, stop, subChatId, displayQuestions, handleQuestionsSkip])
+  }, [isActive, isStreaming, subChatId, displayQuestions, handleQuestionsSkip, handleStop])
 
   // Keyboard shortcut: Enter to focus input when not already focused
   useFocusInputOnEnter(editorRef, isActive)
@@ -4112,7 +4113,7 @@ const ChatViewInner = memo(function ChatViewInner({
       // The server-side save block preserves sessionId on abort, so the next
       // message can resume the session with full conversation context.
       if (isStreamingRef.current) {
-        await handleStop()
+        await handleStop("queue-send")
         await waitForStreamingReady(subChatId)
       }
 
@@ -4228,7 +4229,7 @@ const ChatViewInner = memo(function ChatViewInner({
     // The server-side save block sets sessionId=null on abort, so the next
     // message starts fresh without needing an explicit cancel mutation.
     if (isStreamingRef.current) {
-      await handleStop()
+      await handleStop("force-send")
       await waitForStreamingReady(subChatId)
     }
 
@@ -4491,11 +4492,33 @@ const ChatViewInner = memo(function ChatViewInner({
   const prevStatusRef = useRef(status)
   useEffect(() => {
     if (prevStatusRef.current !== status) {
-      console.log(`[SD] STATUS sub=${subChatId.slice(-8)} ${prevStatusRef.current} -> ${status}`)
+      logStreamDiagnostic("info", `[SD] STATUS sub=${subChatId.slice(-8)} ${prevStatusRef.current} -> ${status}`)
       prevStatusRef.current = status
     }
     setStreamingStatus(subChatId, status as "ready" | "streaming" | "submitted" | "error")
   }, [subChatId, status, setStreamingStatus])
+
+  const prevIsActiveRef = useRef(isActive)
+  useEffect(() => {
+    if (prevIsActiveRef.current !== isActive) {
+      logStreamDiagnostic(
+        "info",
+        `[SD] VIEW_ACTIVE sub=${subChatId.slice(-8)} ${prevIsActiveRef.current} -> ${isActive} status=${status} stream=${streamId ? streamId.slice(-8) : "none"}`,
+      )
+      prevIsActiveRef.current = isActive
+    }
+  }, [isActive, status, streamId, subChatId])
+
+  const prevStreamIdRef = useRef(streamId)
+  useEffect(() => {
+    if (prevStreamIdRef.current !== streamId) {
+      logStreamDiagnostic(
+        "info",
+        `[SD] VIEW_STREAM sub=${subChatId.slice(-8)} ${prevStreamIdRef.current ? prevStreamIdRef.current.slice(-8) : "none"} -> ${streamId ? streamId.slice(-8) : "none"} active=${isActive} status=${status}`,
+      )
+      prevStreamIdRef.current = streamId
+    }
+  }, [isActive, status, streamId, subChatId])
 
   // Chat search - scroll to current match
   // Use ref to track scroll lock and prevent race conditions
@@ -5175,6 +5198,7 @@ export function ChatView({
     setDiffCache((prev) => ({ ...prev, diffContent: content }))
   }, [setDiffCache])
   const [diffMode, setDiffMode] = useAtom(diffViewModeAtom)
+  const [diffScope, setDiffScope] = useAtom(diffScopeAtom)
   const [diffDisplayMode, setDiffDisplayMode] = useAtom(diffViewDisplayModeAtom)
   const subChatsSidebarMode = useAtomValue(agentsSubChatsSidebarModeAtom)
 
@@ -5892,7 +5916,7 @@ export function ChatView({
     try {
       // Desktop: use new getParsedDiff endpoint (all-in-one: parsing + file contents)
       if (worktreePath && chatId) {
-        const result = await trpcClient.chats.getParsedDiff.query({ chatId })
+        const result = await trpcClient.chats.getParsedDiff.query({ chatId, scope: diffScope })
 
         if (result.files.length > 0) {
           // Store parsed files directly (already parsed on server)
@@ -6025,7 +6049,7 @@ export function ChatView({
       console.log("[fetchDiffStats] Done")
       isFetchingDiffRef.current = false
     }
-  }, [worktreePath, sandboxId, chatId, agentChat]) // Note: activeSubChatId removed - diff is same for whole chat
+  }, [worktreePath, sandboxId, chatId, agentChat, diffScope]) // Note: activeSubChatId removed - diff is same for whole chat
 
   // Debounced version for calling after stream ends
   const fetchDiffStatsDebounced = useCallback(() => {
@@ -6048,57 +6072,9 @@ export function ChatView({
     fetchDiffStats()
   }, [fetchDiffStats])
 
-  // Refresh diff stats when diff sidebar opens (background refresh - don't block UI)
-  // Keep existing data visible while fetching, only update if data changed
-  useEffect(() => {
-    if (isDiffSidebarOpen) {
-      // Fetch in background - existing parsedFileDiffs will be shown immediately
-      fetchDiffStats()
-    }
-  }, [isDiffSidebarOpen, fetchDiffStats])
-
-  // Throttled diff refresh for filesystem events (file edits, git ops)
-  // Initialize to Date.now() to prevent double-fetch on mount
-  // (the "mount" effect already fetches, throttle should wait)
-  const lastDiffFetchTimeRef = useRef<number>(Date.now())
-  const DIFF_THROTTLE_MS = 2000 // Max 1 fetch per 2 seconds
-  const diffRefreshTimerRef = useRef<NodeJS.Timeout | null>(null)
-
-  const scheduleDiffRefresh = useCallback(() => {
-    const now = Date.now()
-    const timeSinceLastFetch = now - lastDiffFetchTimeRef.current
-
-    if (timeSinceLastFetch >= DIFF_THROTTLE_MS) {
-      lastDiffFetchTimeRef.current = now
-      fetchDiffStats()
-      return
-    }
-
-    const delay = DIFF_THROTTLE_MS - timeSinceLastFetch
-    if (diffRefreshTimerRef.current) {
-      clearTimeout(diffRefreshTimerRef.current)
-    }
-    diffRefreshTimerRef.current = setTimeout(() => {
-      diffRefreshTimerRef.current = null
-      lastDiffFetchTimeRef.current = Date.now()
-      fetchDiffStats()
-    }, delay)
-  }, [fetchDiffStats])
-
-  useEffect(() => {
-    return () => {
-      if (diffRefreshTimerRef.current) {
-        clearTimeout(diffRefreshTimerRef.current)
-        diffRefreshTimerRef.current = null
-      }
-    }
-  }, [])
-
-  // Listen for file changes from Claude Write/Edit tools and refresh diff
-  useFileChangeListener(worktreePath, { onChange: scheduleDiffRefresh })
-
-  // Subscribe to GitWatcher for real-time file system monitoring (chokidar on main process)
-  useGitWatcher(worktreePath, { onChange: scheduleDiffRefresh, debounceMs: 200 })
+  // Auto-refresh disabled - use manual refresh button in Changes widget / diff modal instead.
+  // File watchers (useGitWatcher, useFileChangeListener) were too heavy on remote (treehouse).
+  // Diff still auto-refreshes on mount, worktree change, and when agent streams finish.
 
   // Handle Create PR (Direct) - pushes branch and opens GitHub compare URL
   const handleCreatePrDirect = useCallback(async () => {
@@ -6270,8 +6246,8 @@ Make sure to preserve all functionality from both branches when resolving confli
 
   const handleCommitChangesRefresh = useCallback(() => {
     refetchGitStatus()
-    scheduleDiffRefresh()
-  }, [refetchGitStatus, scheduleDiffRefresh])
+    fetchDiffStats()
+  }, [refetchGitStatus, fetchDiffStats])
 
   const {
     commit: commitChanges,
@@ -6346,8 +6322,8 @@ Make sure to preserve all functionality from both branches when resolving confli
   // Stable callbacks for DiffSidebarHeader to prevent re-renders
   const handleRefreshGitStatus = useCallback(() => {
     refetchGitStatus()
-    scheduleDiffRefresh()
-  }, [refetchGitStatus, scheduleDiffRefresh])
+    fetchDiffStats()
+  }, [refetchGitStatus, fetchDiffStats])
 
   const handleExpandAll = useCallback(() => {
     diffViewRef.current?.expandAll()
@@ -8013,7 +7989,7 @@ Make sure to preserve all functionality from both branches when resolving confli
               isCommittingToPr={isCommittingToPr}
               subChatsWithFiles={subChatsWithFiles}
               setDiffStats={setDiffStats}
-              onDiscardSuccess={scheduleDiffRefresh}
+              onDiscardSuccess={fetchDiffStats}
             />
           </DiffStateProvider>
         )}
@@ -8179,6 +8155,7 @@ Make sure to preserve all functionality from both branches when resolving confli
             gitStatus={gitStatus}
             isGitStatusLoading={isGitStatusLoading}
             currentBranch={branchData?.current}
+            onRefreshDiff={fetchDiffStats}
             onExpandTerminal={() => setIsTerminalSidebarOpen(true)}
             onExpandPlan={() => setIsPlanSidebarOpen(true)}
             onExpandDiff={() => setIsDiffSidebarOpen(true)}
